@@ -16,7 +16,22 @@ BUNDLED_PROJECT="/opt/rv-link-project"
 # Add-on Slugs
 SLUG_MOSQUITTO="core_mosquitto"
 SLUG_NODERED="a0d7b954_nodered"
-SLUG_CAN_BRIDGE="837b0638_can-mqtt-bridge"
+
+# Find PRODUCTION CAN-MQTT Bridge addon (from main ha-addons repo, not alpha/beta)
+bashio::log.info "🔍 Finding production CAN-MQTT Bridge addon..."
+SLUG_CAN_BRIDGE=""
+store_addons=$(api_call GET "/store/addons")
+if [ -n "$store_addons" ]; then
+  # Find can-mqtt-bridge from the production repository (not alpha or beta)
+  SLUG_CAN_BRIDGE=$(echo "$store_addons" | jq -r '.data.addons[] | select(.slug | endswith("can-mqtt-bridge")) | select(.repository | test("ha-addons$")) | .slug' | head -n1)
+fi
+
+if [ -z "$SLUG_CAN_BRIDGE" ]; then
+  bashio::log.fatal "❌ Could not find production CAN-MQTT Bridge addon in store"
+  bashio::log.fatal "   Make sure https://github.com/Backroads4Me/ha-addons is added as a repository"
+  exit 1
+fi
+bashio::log.info "   ✅ Found production CAN-MQTT Bridge: $SLUG_CAN_BRIDGE"
 
 # State file to track RV Link management
 STATE_FILE="/data/.rvlink-state.json"
