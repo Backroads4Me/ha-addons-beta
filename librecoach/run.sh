@@ -427,7 +427,7 @@ get_managed_version() {
 }
 
 # Ensure this addon starts on boot (upgrades from older versions may have boot: manual)
-api_call POST "/addons/self/options" '{"boot":"auto"}' > /dev/null
+api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/null
 
 # ========================
 # Phase 0: Deployment
