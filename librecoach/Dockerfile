@@ -20,9 +20,13 @@ RUN apk add --no-cache \
 
 # Bundle the Node-RED Project
 # Always pulls latest from main branch
-RUN git clone --depth 1 https://github.com/Backroads4Me/rv-link-node-red /opt/rv-link-project && \
-    rm -rf /opt/rv-link-project/.git && \
-    rm -f /opt/rv-link-project/.gitignore /opt/rv-link-project/.gitattributes /opt/rv-link-project/flows_cred.json
+# Keep flows_cred.json - it contains MQTT credentials encrypted with "librecoach" as the credential_secret
+RUN git clone --depth 1 https://github.com/Backroads4Me/librecoach-node-red /opt/librecoach-project && \
+    rm -rf /opt/librecoach-project/.git && \
+    rm -f /opt/librecoach-project/.gitignore /opt/librecoach-project/.gitattributes
+
+# Copy init script to bundled project (gets deployed to /share/.librecoach/)
+COPY init-nodered.sh /opt/librecoach-project/init-nodered.sh
 
 # Copy run script and make it executable
 COPY run.sh /run.sh
