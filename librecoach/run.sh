@@ -179,8 +179,8 @@ install_addon() {
       bashio::log.error "   To use it with LibreCoach, you must grant permission:"
       bashio::log.error ""
       bashio::log.error "   1. Go to the LibreCoach add-on Configuration tab"
-      bashio::log.error "   2. Enable the 'confirm_nodered_takeover' option"
-      bashio::log.error "   3. Save and restart the LibreCoach add-on"
+      bashio::log.error "   2. Enable the 'Allow Node-RED Overwrite' option"
+      bashio::log.error "   3. Scroll down and click 'Save'"
       bashio::log.error ""
       bashio::log.error "   ⚠️  WARNING: This will replace your existing Node-RED flows with LibreCoach flows."
     fi
