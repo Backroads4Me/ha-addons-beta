@@ -426,6 +426,9 @@ get_managed_version() {
   jq -r '.version // ""' "$STATE_FILE"
 }
 
+# Ensure this addon starts on boot (upgrades from older versions may have boot: manual)
+api_call POST "/addons/self/options" '{"boot":"auto"}' > /dev/null
+
 # ========================
 # Phase 0: Deployment
 # ========================
