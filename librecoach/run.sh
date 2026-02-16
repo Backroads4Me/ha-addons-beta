@@ -884,12 +884,11 @@ bashio::log.info "   ✅ LibreCoach setup complete."
 
 # Run orchestrator, capture result
 if run_orchestrator; then
-    bashio::log.info "Orchestrator complete. Addon staying running for auto-restart on updates."
+    bashio::log.info "Orchestrator complete."
 else
     bashio::log.warning "Orchestrator encountered errors. Check logs above."
     bashio::log.warning "Fix the issue, then restart the addon from Settings → Add-ons → LibreCoach."
 fi
 
 # Always stay alive so HAOS can restart us on updates
-bashio::log.info "Sleeping indefinitely (this is normal)..."
 sleep infinity
