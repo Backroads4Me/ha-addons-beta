@@ -1,36 +1,60 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
-FROM $BUILD_FROM
+
+# --- Build stage: install build-only tools ---
+FROM $BUILD_FROM AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install dependencies
-# git, curl, jq, bash: For Orchestrator
-# mosquitto-clients: For MQTT connectivity verification
-RUN apk add --no-cache \
-    git \
-    curl \
-    jq \
-    bash \
-    rsync \
-    mosquitto-clients \
-    coreutils \
-    openssl \
-    ca-certificates \
-    && rm -rf /var/cache/apk/*
+RUN apk add --no-cache git python3 py3-pip
+
+# Install Python dependencies (no venv needed — container is single-purpose)
+RUN pip install --no-cache-dir --break-system-packages \
+    bleak \
+    python-can \
+    paho-mqtt \
+    pyserial \
+    bitstruct
 
 # Bundle the Node-RED Project
 # Always pulls latest from main branch
-# Keep flows_cred.json - it contains MQTT credentials encrypted with "librecoach" as the credential_secret
+# Keep flows_cred.json — contains MQTT credentials encrypted with "librecoach" as credential_secret
 RUN git clone --depth 1 https://github.com/Backroads4Me/librecoach-node-red /opt/librecoach-project && \
     rm -rf /opt/librecoach-project/.git && \
     rm -f /opt/librecoach-project/.gitignore /opt/librecoach-project/.gitattributes
 
+# --- Final stage: runtime only ---
+FROM $BUILD_FROM
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Runtime dependencies only (no git, no pip)
+RUN apk add --no-cache \
+    curl \
+    jq \
+    rsync \
+    mosquitto-clients \
+    coreutils \
+    python3 \
+    bluez \
+    can-utils
+
+# Copy Python packages from builder to a staging dir, then move to correct location
+COPY --from=builder /usr/lib/python3.*/site-packages/ /tmp/site-packages/
+RUN PYDIR=$(python3 -c "import site; print(site.getsitepackages()[0])") && \
+    cp -r /tmp/site-packages/* "$PYDIR/" && \
+    rm -rf /tmp/site-packages
+
+# Copy bundled Node-RED project from builder
+COPY --from=builder /opt/librecoach-project /opt/librecoach-project
+
 # Copy init script to bundled project (gets deployed to /share/.librecoach/)
 COPY init-nodered.sh /opt/librecoach-project/init-nodered.sh
 
-# Copy run script and make it executable
-COPY run.sh /run.sh
+# Copy vehicle bridge source
+COPY vehicle_bridge /opt/vehicle_bridge
 
-RUN chmod a+x /run.sh
+# Copy s6 service definitions and cont-init.d scripts
+COPY rootfs /
 
-CMD ["/run.sh"]
+# Copy orchestrator as cont-init.d script (runs once at startup before services)
+COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh

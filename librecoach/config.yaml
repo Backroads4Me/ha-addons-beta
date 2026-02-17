@@ -11,10 +11,18 @@ arch:
   - armv7
 startup: services
 boot: auto
-init: false
+init: true
 hassio_api: true
 hassio_role: manager
 homeassistant_api: true
+privileged:
+  - NET_ADMIN
+  - NET_RAW
+host_network: true
+host_dbus: true
+devices:
+  - /dev/bus/usb
+uart: true
 map:
   - share:rw
 options:
@@ -26,7 +34,16 @@ options:
   mqtt_topic_status: "can/status"
   can_interface: "can0"
   can_bitrate: "250000"
+  mqtt_host: "core-mosquitto"
+  mqtt_port: 1883
   debug_logging: false
+  victron_enabled: false
+  ble_enabled: true
+  microair_enabled: false
+  microair_password: ""
+  microair_email: ""
+  ble_scan_interval: 30
+  beta_enabled: false
 schema:
   confirm_nodered_takeover: bool
   mqtt_user: str
@@ -36,5 +53,14 @@ schema:
   mqtt_topic_status: str
   can_interface: str
   can_bitrate: list(125000|250000|500000|1000000)
+  mqtt_host: str?
+  mqtt_port: "int(1,65535)?"
   debug_logging: bool
+  victron_enabled: bool
+  ble_enabled: bool
+  microair_enabled: bool
+  microair_password: password?
+  microair_email: str?
+  ble_scan_interval: "int(10,300)"
+  beta_enabled: bool
 image: ghcr.io/backroads4me/{arch}-librecoach-beta
