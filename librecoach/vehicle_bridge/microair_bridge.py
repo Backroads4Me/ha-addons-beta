@@ -3,16 +3,17 @@ import json
 import logging
 import time
 
-from bleak import BleakClient, BleakScanner
-from bleak.exc import BleakError
+from dbus_next.aio import MessageBus
+from dbus_next.constants import BusType
+from dbus_next import Variant
 
 log = logging.getLogger("vehicle_bridge.microair")
 
 UUIDS = {
-    "service": "000000FF-0000-1000-8000-00805F9B34FB",
-    "passwordCmd": "0000DD01-0000-1000-8000-00805F9B34FB",
-    "jsonCmd": "0000EE01-0000-1000-8000-00805F9B34FB",
-    "jsonReturn": "0000FF01-0000-1000-8000-00805F9B34FB",
+    "service": "000000ff-0000-1000-8000-00805f9b34fb",
+    "passwordCmd": "0000dd01-0000-1000-8000-00805f9b34fb",
+    "jsonCmd": "0000ee01-0000-1000-8000-00805f9b34fb",
+    "jsonReturn": "0000ff01-0000-1000-8000-00805f9b34fb",
 }
 
 MODE_NUM_TO_MODE = {
@@ -46,6 +47,18 @@ FAN_MODE_MAP = {
     3: "medium",
     128: "auto",
 }
+
+
+async def _get_bus():
+    """Connect to the system D-Bus."""
+    return await MessageBus(bus_type=BusType.SYSTEM).connect()
+
+
+async def _get_interface(bus, path, iface_name):
+    """Introspect a BlueZ object and return a specific interface proxy."""
+    introspection = await bus.introspect("org.bluez", path)
+    proxy = bus.get_proxy_object("org.bluez", path, introspection)
+    return proxy.get_interface(iface_name)
 
 
 class MicroAirBridge:
@@ -89,31 +102,59 @@ class MicroAirBridge:
 
     async def _scan_loop(self):
         while not self._stopping:
+            bus = None
             try:
-                found = await BleakScanner.discover(timeout=10.0)
-                for device in found:
-                    if not (device.name or "").startswith("EasyTouch"):
+                bus = await _get_bus()
+
+                # Get adapter interface
+                adapter = await _get_interface(bus, "/org/bluez/hci0", "org.bluez.Adapter1")
+
+                # Set discovery filter for BLE with MicroAir service UUID
+                await adapter.call_set_discovery_filter({
+                    "Transport": Variant("s", "le"),
+                    "UUIDs": Variant("as", [UUIDS["service"]]),
+                })
+
+                await adapter.call_start_discovery()
+                await asyncio.sleep(10.0)
+
+                try:
+                    await adapter.call_stop_discovery()
+                except Exception:
+                    pass
+
+                # Enumerate discovered devices via ObjectManager
+                obj_manager = await _get_interface(bus, "/", "org.freedesktop.DBus.ObjectManager")
+                objects = await obj_manager.call_get_managed_objects()
+
+                for path, interfaces in objects.items():
+                    if "org.bluez.Device1" not in interfaces:
                         continue
-                    address = device.address.lower()
+                    props = interfaces["org.bluez.Device1"]
+                    name = props.get("Name", Variant("s", "")).value
+                    if not name.startswith("EasyTouch"):
+                        continue
+                    address = props.get("Address", Variant("s", "")).value.lower()
                     if address not in self._devices:
-                        log.info("Discovered MicroAir device: %s (%s)", address, device.name)
+                        log.info("Discovered MicroAir device: %s (%s)", address, name)
                         microair = _MicroAirDevice(
                             address=address,
-                            name=device.name or address,
+                            device_path=path,
+                            name=name,
                             password=self._password,
                             email=self._email,
                             mqtt=self.mqtt,
                         )
                         self._devices[address] = microair
                         microair.start(self._scan_interval)
-            except BleakError as exc:
+
+            except Exception as exc:
                 log.warning("BLE scan error: %s", exc)
                 self.mqtt.publish("librecoach/bridge/ble", f"error: {exc}", retain=True)
-            except Exception as exc:
-                log.warning("Unexpected BLE scan error: %s", exc)
-            else:
-                if not any((d.name or "").startswith("EasyTouch") for d in found):
-                    log.debug("BLE scan complete: %d devices found, no EasyTouch devices", len(found))
+            finally:
+                if bus:
+                    bus.disconnect()
+
             await asyncio.sleep(self._scan_interval)
 
     async def _on_command(self, topic, payload):
@@ -140,8 +181,9 @@ class MicroAirBridge:
 
 
 class _MicroAirDevice:
-    def __init__(self, address, name, password, email, mqtt):
+    def __init__(self, address, device_path, name, password, email, mqtt):
         self.address = address
+        self.device_path = device_path
         self.name = name
         self.password = password
         self.email = email
@@ -254,44 +296,135 @@ class _MicroAirDevice:
                 "MA": cfg_data.get("MA", [0] * 16),
             }
 
+    async def _connect_and_resolve(self, bus):
+        """Connect to device and wait for GATT services to resolve."""
+        device_iface = await _get_interface(bus, self.device_path, "org.bluez.Device1")
+        props_iface = await _get_interface(
+            bus, self.device_path, "org.freedesktop.DBus.Properties"
+        )
+
+        await device_iface.call_connect()
+
+        # Wait for ServicesResolved
+        for _ in range(30):
+            resolved = await props_iface.call_get(
+                "org.bluez.Device1", "ServicesResolved"
+            )
+            if resolved.value:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            raise TimeoutError("GATT services did not resolve within 15s")
+
+        return device_iface
+
+    async def _find_characteristic(self, bus, uuid):
+        """Find a GATT characteristic by UUID under the device path."""
+        obj_manager = await _get_interface(bus, "/", "org.freedesktop.DBus.ObjectManager")
+        objects = await obj_manager.call_get_managed_objects()
+
+        for path, interfaces in objects.items():
+            if not path.startswith(self.device_path + "/"):
+                continue
+            if "org.bluez.GattCharacteristic1" not in interfaces:
+                continue
+            props = interfaces["org.bluez.GattCharacteristic1"]
+            char_uuid = props.get("UUID", Variant("s", "")).value
+            if char_uuid.lower() == uuid.lower():
+                return path
+        return None
+
+    async def _write_characteristic(self, bus, char_path, data):
+        """Write bytes to a GATT characteristic."""
+        char_iface = await _get_interface(bus, char_path, "org.bluez.GattCharacteristic1")
+        await char_iface.call_write_value(list(data), {})
+
+    async def _read_characteristic(self, bus, char_path):
+        """Read bytes from a GATT characteristic."""
+        char_iface = await _get_interface(bus, char_path, "org.bluez.GattCharacteristic1")
+        result = await char_iface.call_read_value({})
+        return bytes(result)
+
     async def _request_json(self, command):
         async with self._lock:
+            bus = None
             try:
-                async with BleakClient(self.address) as client:
-                    if self.password:
-                        await client.write_gatt_char(
-                            UUIDS["passwordCmd"], self.password.encode("utf-8"), response=True
+                bus = await _get_bus()
+                await self._connect_and_resolve(bus)
+
+                if self.password:
+                    pw_path = await self._find_characteristic(bus, UUIDS["passwordCmd"])
+                    if pw_path:
+                        await self._write_characteristic(
+                            bus, pw_path, self.password.encode("utf-8")
                         )
                         await asyncio.sleep(0.2)
 
-                    await client.write_gatt_char(
-                        UUIDS["jsonCmd"],
-                        json.dumps(command).encode("utf-8"),
-                        response=True,
-                    )
-                    await asyncio.sleep(1.0)
-                    payload = await client.read_gatt_char(UUIDS["jsonReturn"])
-                    if not payload:
-                        return None
-                    return json.loads(payload.decode("utf-8"))
-            except (BleakError, OSError, asyncio.TimeoutError, json.JSONDecodeError) as exc:
+                cmd_path = await self._find_characteristic(bus, UUIDS["jsonCmd"])
+                ret_path = await self._find_characteristic(bus, UUIDS["jsonReturn"])
+
+                if not cmd_path or not ret_path:
+                    log.debug("MicroAir GATT characteristics not found")
+                    return None
+
+                await self._write_characteristic(
+                    bus, cmd_path, json.dumps(command).encode("utf-8")
+                )
+                await asyncio.sleep(1.0)
+                payload = await self._read_characteristic(bus, ret_path)
+                if not payload:
+                    return None
+                return json.loads(payload.decode("utf-8"))
+            except (OSError, asyncio.TimeoutError, json.JSONDecodeError, TimeoutError) as exc:
                 log.debug("MicroAir request failed: %s", exc)
                 return None
+            except Exception as exc:
+                log.debug("MicroAir request failed: %s", exc)
+                return None
+            finally:
+                if bus:
+                    try:
+                        device_iface = await _get_interface(
+                            bus, self.device_path, "org.bluez.Device1"
+                        )
+                        await device_iface.call_disconnect()
+                    except Exception:
+                        pass
+                    bus.disconnect()
 
     async def _write_json(self, command):
         async with self._lock:
-            async with BleakClient(self.address) as client:
-                if self.password:
-                    await client.write_gatt_char(
-                        UUIDS["passwordCmd"], self.password.encode("utf-8"), response=True
-                    )
-                    await asyncio.sleep(0.2)
+            bus = None
+            try:
+                bus = await _get_bus()
+                await self._connect_and_resolve(bus)
 
-                await client.write_gatt_char(
-                    UUIDS["jsonCmd"],
-                    json.dumps(command).encode("utf-8"),
-                    response=True,
+                if self.password:
+                    pw_path = await self._find_characteristic(bus, UUIDS["passwordCmd"])
+                    if pw_path:
+                        await self._write_characteristic(
+                            bus, pw_path, self.password.encode("utf-8")
+                        )
+                        await asyncio.sleep(0.2)
+
+                cmd_path = await self._find_characteristic(bus, UUIDS["jsonCmd"])
+                if not cmd_path:
+                    log.debug("MicroAir jsonCmd characteristic not found")
+                    return
+
+                await self._write_characteristic(
+                    bus, cmd_path, json.dumps(command).encode("utf-8")
                 )
+            finally:
+                if bus:
+                    try:
+                        device_iface = await _get_interface(
+                            bus, self.device_path, "org.bluez.Device1"
+                        )
+                        await device_iface.call_disconnect()
+                    except Exception:
+                        pass
+                    bus.disconnect()
 
 
 def _parse_status(status):

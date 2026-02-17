@@ -9,7 +9,7 @@ RUN apk add --no-cache git python3 py3-pip
 
 # Install Python dependencies (no venv needed — container is single-purpose)
 RUN pip install --no-cache-dir --break-system-packages \
-    bleak \
+    dbus-next \
     python-can \
     paho-mqtt \
     pyserial \
@@ -37,6 +37,7 @@ RUN apk add --no-cache \
     iproute2 \
     python3 \
     bluez \
+    dbus-libs \
     can-utils
 
 # Copy Python packages from builder to a staging dir, then move to correct location
