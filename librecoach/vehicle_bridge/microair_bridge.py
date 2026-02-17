@@ -272,7 +272,7 @@ class _MicroAirDevice:
                 await char_iface.call_write_value(
                     self.password.encode("utf-8"), {}
                 )
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(1.0)
                 log.debug("MicroAir %s: password sent", self.address)
 
         self._connected = True
@@ -388,40 +388,45 @@ class _MicroAirDevice:
 
     async def _request_json(self, command):
         async with self._lock:
-            try:
-                await self._ensure_connected()
+            last_exc = None
+            for attempt in range(2):
+                try:
+                    await self._ensure_connected()
 
-                cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
-                ret_path = self._char_paths.get(UUIDS["jsonReturn"])
+                    cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
+                    ret_path = self._char_paths.get(UUIDS["jsonReturn"])
 
-                if not cmd_path or not ret_path:
-                    log.debug("MicroAir GATT characteristics not found")
-                    return None
+                    if not cmd_path or not ret_path:
+                        log.debug("MicroAir GATT characteristics not found")
+                        return None
 
-                cmd_iface = await _get_interface(
-                    self._bus, cmd_path, "org.bluez.GattCharacteristic1"
-                )
-                await cmd_iface.call_write_value(
-                    json.dumps(command).encode("utf-8"), {}
-                )
-                await asyncio.sleep(1.0)
+                    cmd_iface = await _get_interface(
+                        self._bus, cmd_path, "org.bluez.GattCharacteristic1"
+                    )
+                    await cmd_iface.call_write_value(
+                        json.dumps(command).encode("utf-8"), {}
+                    )
+                    await asyncio.sleep(1.0)
 
-                ret_iface = await _get_interface(
-                    self._bus, ret_path, "org.bluez.GattCharacteristic1"
-                )
-                result = await ret_iface.call_read_value({})
-                payload = bytes(result)
-                if not payload:
-                    return None
-                return json.loads(payload.decode("utf-8"))
-            except (OSError, asyncio.TimeoutError, json.JSONDecodeError, TimeoutError) as exc:
-                log.debug("MicroAir request failed: %s", exc)
-                await self._disconnect()
-                return None
-            except Exception as exc:
-                log.debug("MicroAir request failed: %s", exc)
-                await self._disconnect()
-                return None
+                    ret_iface = await _get_interface(
+                        self._bus, ret_path, "org.bluez.GattCharacteristic1"
+                    )
+                    result = await ret_iface.call_read_value({})
+                    payload = bytes(result)
+                    if not payload:
+                        return None
+                    decoded = json.loads(payload.decode("utf-8"))
+                    log.debug("MicroAir raw response: %s", json.dumps(decoded))
+                    return decoded
+                except Exception as exc:
+                    last_exc = exc
+                    log.debug("MicroAir request failed (attempt %d): %s", attempt + 1, exc)
+                    await self._disconnect()
+                    if attempt == 0:
+                        await asyncio.sleep(2.0)
+
+            log.debug("MicroAir request failed after retries: %s", last_exc)
+            return None
 
     async def _write_json(self, command):
         async with self._lock:
