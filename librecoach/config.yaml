@@ -30,9 +30,9 @@ options:
   microair_enabled: false
   microair_email: ""
   microair_password: ""
+  confirm_nodered_takeover: false
   beta_enabled: false
   debug_logging: false
-  confirm_nodered_takeover: false
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
   mqtt_user: "librecoach"
@@ -47,9 +47,9 @@ schema:
   microair_enabled: bool
   microair_email: str?
   microair_password: password?
+  confirm_nodered_takeover: bool
   beta_enabled: bool
   debug_logging: bool
-  confirm_nodered_takeover: bool
   mqtt_host: str?
   mqtt_port: "int(1,65535)?"
   mqtt_user: str
