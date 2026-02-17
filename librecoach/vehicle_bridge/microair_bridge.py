@@ -270,7 +270,7 @@ class _MicroAirDevice:
                     self._bus, pw_path, "org.bluez.GattCharacteristic1"
                 )
                 await char_iface.call_write_value(
-                    list(self.password.encode("utf-8")), {}
+                    self.password.encode("utf-8"), {}
                 )
                 await asyncio.sleep(0.2)
                 log.debug("MicroAir %s: password sent", self.address)
@@ -402,7 +402,7 @@ class _MicroAirDevice:
                     self._bus, cmd_path, "org.bluez.GattCharacteristic1"
                 )
                 await cmd_iface.call_write_value(
-                    list(json.dumps(command).encode("utf-8")), {}
+                    json.dumps(command).encode("utf-8"), {}
                 )
                 await asyncio.sleep(1.0)
 
@@ -437,7 +437,7 @@ class _MicroAirDevice:
                     self._bus, cmd_path, "org.bluez.GattCharacteristic1"
                 )
                 await cmd_iface.call_write_value(
-                    list(json.dumps(command).encode("utf-8")), {}
+                    json.dumps(command).encode("utf-8"), {}
                 )
             except Exception as exc:
                 log.debug("MicroAir write failed: %s", exc)
