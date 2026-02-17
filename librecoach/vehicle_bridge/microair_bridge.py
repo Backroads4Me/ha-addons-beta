@@ -510,7 +510,7 @@ def _parse_status(status):
         except (IndexError, TypeError):
             continue
 
-        if len(param) > 2:
+        if len(param) > 2 and zone_num == 0:
             zone_status["outdoorTemperature"] = param[2]
 
         if len(param) > 1:
