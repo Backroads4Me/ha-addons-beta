@@ -345,8 +345,6 @@ class _MicroAirDevice:
                     if missing_configs:
                         await self._fetch_zone_configs(missing_configs)
 
-                # The original _poll_once had a _publish_status equivalent, let's re-implement that here
-                # based on the original logic.
                 zones = parsed.get("available_zones", [])
                 for zone in zones:
                     zone_state = parsed.get("zones", {}).get(zone, {})
@@ -390,25 +388,14 @@ class _MicroAirDevice:
                         retain=True,
                     )
 
-            await asyncio.sleep(interval)
-
-    async def _poll_once(self):
-        # This method is now deprecated as its logic has been moved into _poll_loop
-        # It's kept for now to avoid breaking other parts if they still call it,
-        # but it should ideally be removed or refactored.
-        log.warning("MicroAir _poll_once is deprecated and should not be called directly.")
-        pass
+            # Use a shorter retry delay for early failures (BLE interference on startup),
+            # then back off to the full interval once the device is likely asleep.
+            retry_delay = interval if failure_count >= 3 else min(interval, 10)
+            await asyncio.sleep(retry_delay)
 
     async def send_command(self, command):
         try:
             await self._write_json(command)
-            # Force immediate status update so UI reflects change
-            await asyncio.sleep(0.5)
-            # The original _poll() call here should now trigger the _poll_loop logic
-            # or a direct status update if needed. For now, we'll just let the loop handle it.
-            # await self._poll() # This would call _poll_once, which is now empty.
-            # Instead, we might want to trigger a single poll cycle.
-            # For simplicity, we'll rely on the next scheduled _poll_loop iteration.
         except Exception as exc:
             log.warning("MicroAir command failed for %s: %s", self.address, exc)
 
@@ -461,7 +448,6 @@ class _MicroAirDevice:
                     if not payload:
                         return None
                     decoded = json.loads(payload.decode("utf-8"))
-                    log.debug("MicroAir raw response: %s", json.dumps(decoded))
                     return decoded
                 except Exception as exc:
                     last_exc = exc

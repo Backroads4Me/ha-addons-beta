@@ -286,76 +286,6 @@ wait_for_nodered_api() {
   return 1
 }
 
-deploy_nodered_flows() {
-  bashio::log.info "   > Triggering Node-RED flow deployment..."
-
-  local base_url="http://a0d7b954-nodered:1880"
-
-  # FETCH PHASE: Retry until Node-RED is fully ready
-  local flows=""
-  local retries=15
-  local success=false
-  local last_error=""
-
-  bashio::log.info "   > Waiting for Node-RED to be ready for deployment..."
-  while [ $retries -gt 0 ]; do
-    local response
-    local http_code
-    response=$(curl -s -w "\n%{http_code}" --user "$MQTT_USER:$MQTT_PASS" -m 5 "${base_url}/flows" 2>&1)
-    http_code=$(echo "$response" | tail -n1)
-    flows=$(echo "$response" | sed '$d')
-
-    if [ "$http_code" = "200" ]; then
-      if echo "$flows" | jq -e '.' >/dev/null 2>&1; then
-        success=true
-        break
-      else
-        last_error="Invalid JSON response"
-      fi
-    else
-      last_error="HTTP $http_code"
-    fi
-
-    log_debug "Node-RED API not ready yet (${last_error}). Retrying in 3s... ($retries attempts left)"
-    sleep 3
-    ((retries--))
-  done
-
-  if [ "$success" = "false" ]; then
-    bashio::log.error "   ❌ Failed to communicate with Node-RED API after 45 seconds."
-    bashio::log.error "   Last error: ${last_error}"
-    bashio::log.error "   URL: ${base_url}/flows"
-    bashio::log.error "   User: ${MQTT_USER}"
-    return 1
-  fi
-
-  bashio::log.info "   Node-RED API ready. Deploying flows..."
-
-  # DEPLOY PHASE: Use "full" deployment for complete node restart
-  # Use stdin to avoid "Argument list too long" error with large flows
-  local deploy_response
-  deploy_response=$(echo "$flows" | curl -s -w "\n%{http_code}" --user "$MQTT_USER:$MQTT_PASS" -m 10 -X POST \
-    -H "Content-Type: application/json" \
-    -H "Node-RED-Deployment-Type: full" \
-    -d @- \
-    "${base_url}/flows" 2>&1)
-
-  local http_code=$(echo "$deploy_response" | tail -n1)
-  local response_body=$(echo "$deploy_response" | sed '$d')
-
-  if [ "$http_code" = "204" ] || [ "$http_code" = "200" ]; then
-    bashio::log.info "   Node-RED flows deployed successfully"
-    # Give MQTT nodes time to establish connections
-    sleep 5
-    return 0
-  else
-    bashio::log.warning "   ⚠️  Failed to deploy flows. HTTP $http_code"
-    log_debug "Deploy response: $response_body"
-    bashio::log.warning "   You may need to click Deploy manually."
-    return 1
-  fi
-}
-
 
 # ======================== 
 # State Management
@@ -692,18 +622,10 @@ else
   fi
 fi
 
-# After starting/restarting, wait for the API to be available.
-# This ensures the init_command has run and flows are loaded before we proceed.
+# Wait for Node-RED to be available before proceeding.
+# Flows are loaded automatically by Node-RED on startup via init_commands — no API deploy needed.
 if ! wait_for_nodered_api; then
-    bashio::log.fatal "   ❌ Node-RED API did not become available. Cannot deploy flows."
-    exit 1
-fi
-
-# Now, trigger a flow deployment. This is the equivalent of clicking the
-# "Deploy" button in the UI and forces MQTT nodes to activate their connection.
-if ! deploy_nodered_flows; then
-    bashio::log.warning "   ⚠️  Flow deployment failed. MQTT nodes may not connect."
-    bashio::log.warning "   You may need to open Node-RED and click 'Deploy' manually."
+    bashio::log.warning "   ⚠️  Node-RED API did not respond. It may still be starting."
 fi
 
 # Ensure Node-RED starts on boot
