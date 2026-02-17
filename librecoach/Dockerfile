@@ -58,3 +58,7 @@ COPY rootfs /
 
 # Copy orchestrator as cont-init.d script (runs once at startup before services)
 COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh
+
+# Strip Windows CRLF line endings from all scripts and s6 config files
+RUN find /etc/s6-overlay /etc/cont-init.d /opt/vehicle_bridge /opt/librecoach-project \
+    -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
