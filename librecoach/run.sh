@@ -68,7 +68,6 @@ check_mqtt_integration() {
   fi
 
   if echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
-    bashio::log.info "   MQTT integration is configured"
     return 0
   else
     return 1
@@ -651,10 +650,6 @@ else
     bashio::log.info "   Node-RED configuration is up to date"
   fi
 fi
-
-# Verify Node-RED configuration was applied
-NR_VERIFY=$(api_call GET "/addons/$SLUG_NODERED/info" | jq -r '.data.options.users // "null"')
-bashio::log.info "   > Node-RED users configured: $NR_VERIFY"
 
 # Ensure Node-RED starts/restarts to apply init commands
 if [ "$NEEDS_RESTART" = "true" ]; then
