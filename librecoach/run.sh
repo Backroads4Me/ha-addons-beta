@@ -596,9 +596,26 @@ if [ "$NODERED_ALREADY_INSTALLED" = "true" ]; then
        bashio::log.warning "   1. Go to the LibreCoach add-on configuration tab."
        bashio::log.warning "   2. Enable 'Allow Node-RED Overwrite'."
        bashio::log.warning "   3. Scroll down and click 'Save'."
+       bashio::log.warning "   4. Restart the LibreCoach add-on."
        bashio::log.warning ""
-       bashio::log.fatal "   ❌ Installation aborted to protect existing flows."
-       exit 1
+       send_notification \
+         "⚠️ LibreCoach: Node-RED Setup Required" \
+         "**LibreCoach setup is paused — action required!**
+
+An existing Node-RED installation was detected. LibreCoach needs to replace your Node-RED flows with the LibreCoach project flows.
+
+**To proceed:**
+1. Go to **Settings → Add-ons → LibreCoach**
+2. Open the **Configuration** tab
+3. Enable **Allow Node-RED Overwrite**
+4. Click **Save**
+5. **Restart** the LibreCoach add-on
+
+⚠️ This will replace your existing Node-RED flows." \
+         "librecoach_nodered_takeover"
+       bashio::log.warning "   ⏸️  Setup paused. LibreCoach will not restart automatically."
+       bashio::log.warning "   After granting permission and saving, restart the add-on."
+       return 1
     else
        bashio::log.info "   ✅ Permission granted to take over Node-RED."
     fi
