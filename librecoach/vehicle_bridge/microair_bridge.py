@@ -90,10 +90,10 @@ class MicroAirBridge:
     async def _scan_loop(self):
         while not self._stopping:
             try:
-                found = await BleakScanner.discover(
-                    timeout=10.0, service_uuids=[UUIDS["service"]]
-                )
+                found = await BleakScanner.discover(timeout=10.0)
                 for device in found:
+                    if not (device.name or "").startswith("EasyTouch"):
+                        continue
                     address = device.address.lower()
                     if address not in self._devices:
                         log.info("Discovered MicroAir device: %s (%s)", address, device.name)
@@ -111,6 +111,9 @@ class MicroAirBridge:
                 self.mqtt.publish("librecoach/bridge/ble", f"error: {exc}", retain=True)
             except Exception as exc:
                 log.warning("Unexpected BLE scan error: %s", exc)
+            else:
+                if not any((d.name or "").startswith("EasyTouch") for d in found):
+                    log.debug("BLE scan complete: %d devices found, no EasyTouch devices", len(found))
             await asyncio.sleep(self._scan_interval)
 
     async def _on_command(self, topic, payload):

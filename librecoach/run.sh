@@ -532,9 +532,11 @@ fi
 
 # Publish config toggles as retained MQTT messages for Node-RED
 mqtt_pub() { mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" -r -q 1 "$@"; }
+MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
 mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
 mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
-bashio::log.info "   Published config toggles to MQTT (victron=$VICTRON_ENABLED, beta=$BETA_ENABLED)"
+mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
+bashio::log.info "   Published config toggles to MQTT (victron=$VICTRON_ENABLED, beta=$BETA_ENABLED, microair=$MICROAIR_ENABLED)"
 
 # ========================
 # Phase 2: Node-RED

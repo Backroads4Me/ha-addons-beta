@@ -13,6 +13,10 @@ This repository contains a collection of my Home Assistant add-ons in beta testi
 - **[Bluetooth WiFi Setup](./bluetooth-wifi-setup/README.md)**: Configure WiFi on headless Home Assistant OS installations via Bluetooth.
 - **[CAN to MQTT Bridge](./can-mqtt-bridge/README.md)**: Initializes CAN interfaces and provides a bidirectional bridge to MQTT.
 
+## Contributing
+
+This repository uses a CLA for the LibreCoach add-on only. The CLA check is applied at the repository level by CLA Assistant, so you may be prompted to sign even when contributing to other add-ons. See `librecoach/CONTRIBUTING.md` for details.
+
 ## Installation
 
 To add this repository to your Home Assistant instance, click the button below:
