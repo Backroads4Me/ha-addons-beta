@@ -1,4 +1,4 @@
-#!/command/with-contenv bashio
+#!/usr/bin/with-contenv bashio
 # Publish offline status as a safety net if Python shutdown didn't complete
 MQTT_USER=$(bashio::config 'mqtt_user')
 MQTT_PASS=$(bashio::config 'mqtt_pass')

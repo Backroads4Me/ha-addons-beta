@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.10"
+version: "1.0.11"
 slug: "librecoach"
 description: "LibreCoach: For controlling and monitoring RV systems"
 url: "https://librecoach.com"
@@ -26,7 +26,15 @@ uart: true
 map:
   - share:rw
 options:
+  victron_enabled: true
+  microair_enabled: false
+  microair_email: ""
+  microair_password: ""
+  beta_enabled: false
+  debug_logging: false
   confirm_nodered_takeover: false
+  mqtt_host: "core-mosquitto"
+  mqtt_port: 1883
   mqtt_user: "librecoach"
   mqtt_pass: "One23four"
   mqtt_topic_raw: "can/raw"
@@ -34,18 +42,16 @@ options:
   mqtt_topic_status: "can/status"
   can_interface: "can0"
   can_bitrate: "250000"
-  mqtt_host: "core-mosquitto"
-  mqtt_port: 1883
-  debug_logging: false
-  victron_enabled: false
-  ble_enabled: true
-  microair_enabled: false
-  microair_password: ""
-  microair_email: ""
-  ble_scan_interval: 30
-  beta_enabled: false
 schema:
+  victron_enabled: bool
+  microair_enabled: bool
+  microair_email: str?
+  microair_password: password?
+  beta_enabled: bool
+  debug_logging: bool
   confirm_nodered_takeover: bool
+  mqtt_host: str?
+  mqtt_port: "int(1,65535)?"
   mqtt_user: str
   mqtt_pass: password
   mqtt_topic_raw: str
@@ -53,14 +59,4 @@ schema:
   mqtt_topic_status: str
   can_interface: str
   can_bitrate: list(125000|250000|500000|1000000)
-  mqtt_host: str?
-  mqtt_port: "int(1,65535)?"
-  debug_logging: bool
-  victron_enabled: bool
-  ble_enabled: bool
-  microair_enabled: bool
-  microair_password: password?
-  microair_email: str?
-  ble_scan_interval: "int(10,300)"
-  beta_enabled: bool
 image: ghcr.io/backroads4me/{arch}-librecoach-beta
