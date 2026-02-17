@@ -483,11 +483,13 @@ def _parse_status(status):
                 "mode_num": info[10],
                 "furnace_fan_mode_num": info[11],
                 "facePlateTemperature": info[12],
-                "outdoorTemperature": info[13],
                 "active_state_num": info[15],
             }
         except (IndexError, TypeError):
             continue
+
+        if len(param) > 2:
+            zone_status["outdoorTemperature"] = param[2]
 
         if len(param) > 1:
             flags_register = param[1]
