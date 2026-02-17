@@ -377,13 +377,9 @@ class _MicroAirDevice:
 
     async def send_command(self, command):
         try:
-                await cmd_iface.call_write_value(
-                    json.dumps(command).encode("utf-8"), {}
-                )
-            except Exception as exc:
-                log.debug("MicroAir write failed: %s", exc)
-                await self._disconnect()
-                raise
+            await self._write_json(command)
+        except Exception as exc:
+            log.warning("MicroAir command failed for %s: %s", self.address, exc)
 
 
     async def _fetch_zone_configs(self, zones):
