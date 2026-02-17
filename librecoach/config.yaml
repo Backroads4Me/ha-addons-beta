@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.13"
+version: "1.0.14"
 slug: "librecoach"
 description: "LibreCoach: For controlling and monitoring RV systems"
 url: "https://librecoach.com"
@@ -11,7 +11,7 @@ arch:
   - armv7
 startup: services
 boot: auto
-init: true
+init: false
 hassio_api: true
 hassio_role: manager
 homeassistant_api: true
