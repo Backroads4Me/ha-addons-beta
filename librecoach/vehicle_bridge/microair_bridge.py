@@ -378,6 +378,9 @@ class _MicroAirDevice:
     async def send_command(self, command):
         try:
             await self._write_json(command)
+            # Force immediate status update so UI reflects change
+            await asyncio.sleep(0.5)
+            await self._poll()
         except Exception as exc:
             log.warning("MicroAir command failed for %s: %s", self.address, exc)
 
