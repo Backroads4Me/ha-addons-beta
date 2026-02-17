@@ -410,6 +410,17 @@ fi
 
 # Deploy project files
 rsync -a --delete "$BUNDLED_PROJECT/" "$PROJECT_PATH/"
+
+# Select the appropriate init script based on configuration
+PREVENT_FLOW_UPDATES=$(bashio::config 'prevent_flow_updates')
+
+if [ "$PREVENT_FLOW_UPDATES" = "true" ]; then
+    bashio::log.info "   ✅ Flow updates PREVENTED. Using preserve-mode init script."
+    cp "$PROJECT_PATH/init-nodered-preserve.sh" "$PROJECT_PATH/init-nodered.sh"
+else
+    bashio::log.info "   Flow updates ALLOWED. Using standard init script."
+    cp "$PROJECT_PATH/init-nodered-overwrite.sh" "$PROJECT_PATH/init-nodered.sh"
+fi
 # Ensure permissions are open (Node-RED runs as non-root)
 chmod -R 755 "$PROJECT_PATH"
 bashio::log.info "   Project files deployed"

@@ -49,8 +49,14 @@ RUN PYDIR=$(python3 -c "import site; print(site.getsitepackages()[0])") && \
 # Copy bundled Node-RED project from builder
 COPY --from=builder /opt/librecoach-project /opt/librecoach-project
 
-# Copy init script to bundled project (gets deployed to /share/.librecoach/)
-COPY init-nodered.sh /opt/librecoach-project/init-nodered.sh
+# Copy init scripts to bundled project (gets deployed to /share/.librecoach/)
+COPY init-nodered-overwrite.sh /opt/librecoach-project/init-nodered-overwrite.sh
+COPY init-nodered-preserve.sh /opt/librecoach-project/init-nodered-preserve.sh
+# Maintain default as overwrite (used if no config present or before orchestrator runs)
+COPY init-nodered-overwrite.sh /opt/librecoach-project/init-nodered.sh-overwrite.sh
+COPY init-nodered-preserve.sh /opt/librecoach-project/init-nodered-preserve.sh
+# Maintain default as overwrite just in case
+COPY init-nodered-overwrite.sh /opt/librecoach-project/init-nodered.sh
 
 # Copy vehicle bridge source
 COPY vehicle_bridge /opt/vehicle_bridge
