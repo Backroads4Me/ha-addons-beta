@@ -444,24 +444,32 @@ class _MicroAirDevice:
 
     async def _write_json(self, command):
         async with self._lock:
-            try:
-                await self._ensure_connected()
+            last_exc = None
+            for attempt in range(2):
+                try:
+                    await self._ensure_connected()
 
-                cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
-                if not cmd_path:
-                    log.debug("MicroAir jsonCmd characteristic not found")
+                    cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
+                    if not cmd_path:
+                        log.debug("MicroAir jsonCmd characteristic not found")
+                        return
+
+                    cmd_iface = await _get_interface(
+                        self._bus, cmd_path, "org.bluez.GattCharacteristic1"
+                    )
+                    await cmd_iface.call_write_value(
+                        json.dumps(command).encode("utf-8"), {}
+                    )
                     return
-
-                cmd_iface = await _get_interface(
-                    self._bus, cmd_path, "org.bluez.GattCharacteristic1"
-                )
-                await cmd_iface.call_write_value(
-                    json.dumps(command).encode("utf-8"), {}
-                )
-            except Exception as exc:
-                log.debug("MicroAir write failed: %s", exc)
-                await self._disconnect()
-                raise
+                except Exception as exc:
+                    last_exc = exc
+                    log.debug("MicroAir write failed (attempt %d): %s", attempt + 1, exc)
+                    await self._disconnect()
+                    if attempt == 0:
+                        await asyncio.sleep(2.0)
+            
+            if last_exc:
+                raise last_exc
 
 
 def _parse_status(status):

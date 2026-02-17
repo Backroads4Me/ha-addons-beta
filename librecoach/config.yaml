@@ -1,8 +1,8 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.26"
+version: "1.0.28"
 slug: "librecoach"
-description: "LibreCoach: Take Your RV Further"
+description: "Take Your RV Further"
 url: "https://librecoach.com"
 maintainer: "Ted Lanham <Backroads4Me@gmail.com>"
 arch:
