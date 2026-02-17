@@ -286,23 +286,54 @@ wait_for_nodered_api() {
   return 1
 }
 
+get_nodered_token() {
+  # Node-RED admin API uses OAuth2 bearer token auth, not HTTP Basic Auth.
+  # POST to /auth/token with form-encoded credentials to get an access token.
+  local base_url="http://a0d7b954-nodered:1880"
+  local token_response
+  token_response=$(curl -s -m 10 -X POST \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "client_id=node-red-admin&grant_type=password&username=${MQTT_USER}&password=${MQTT_PASS}" \
+    "${base_url}/auth/token")
+  local token
+  token=$(echo "$token_response" | jq -r '.access_token // empty')
+  echo "$token"
+}
+
 deploy_nodered_flows() {
   bashio::log.info "   > Triggering Node-RED flow deployment..."
-  
+
   local base_url="http://a0d7b954-nodered:1880"
-  
-  # FETCH PHASE: Retry until Node-RED is fully ready
+
+  # FETCH PHASE: Retry until Node-RED is fully ready and auth token obtained
   local flows=""
   local retries=15
   local success=false
   local last_error=""
+  local token=""
+  local auth_header=""
 
   bashio::log.info "   > Waiting for Node-RED to be ready for deployment..."
   while [ $retries -gt 0 ]; do
-    # Capture both response and HTTP code
+    # (Re)fetch token on first attempt and whenever we get a 401
+    if [ -z "$token" ]; then
+      token=$(get_nodered_token)
+      log_debug "Node-RED token fetch: $([ -n "$token" ] && echo "ok" || echo "empty")"
+    fi
+
+    if [ -z "$token" ]; then
+      last_error="Auth token unavailable"
+      log_debug "Node-RED auth not ready yet. Retrying in 3s... ($retries attempts left)"
+      sleep 3
+      ((retries--))
+      continue
+    fi
+
+    auth_header="Authorization: Bearer $token"
+
     local response
     local http_code
-    response=$(curl -s -w "\n%{http_code}" --user "$MQTT_USER:$MQTT_PASS" -m 5 "${base_url}/flows" 2>&1)
+    response=$(curl -s -w "\n%{http_code}" -H "$auth_header" -m 5 "${base_url}/flows" 2>&1)
     http_code=$(echo "$response" | tail -n1)
     flows=$(echo "$response" | sed '$d')
 
@@ -313,6 +344,10 @@ deploy_nodered_flows() {
       else
         last_error="Invalid JSON response"
       fi
+    elif [ "$http_code" = "401" ]; then
+      # Token rejected — clear it so we re-fetch next iteration
+      last_error="HTTP 401 (auth not ready)"
+      token=""
     else
       last_error="HTTP $http_code"
     fi
@@ -335,10 +370,11 @@ deploy_nodered_flows() {
   # DEPLOY PHASE: Use "full" deployment for complete node restart
   # Use stdin to avoid "Argument list too long" error with large flows
   local deploy_response
-  deploy_response=$(echo "$flows" | curl -s -w "\n%{http_code}" --user "$MQTT_USER:$MQTT_PASS" -m 10 -X POST \
+  deploy_response=$(echo "$flows" | curl -s -w "\n%{http_code}" \
+    -H "$auth_header" \
     -H "Content-Type: application/json" \
     -H "Node-RED-Deployment-Type: full" \
-    -d @- \
+    -m 10 -X POST -d @- \
     "${base_url}/flows" 2>&1)
 
   local http_code=$(echo "$deploy_response" | tail -n1)
