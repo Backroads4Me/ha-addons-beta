@@ -57,6 +57,7 @@ COPY vehicle_bridge /opt/vehicle_bridge
 
 # Copy s6 service definitions and cont-init.d scripts
 COPY rootfs /
+RUN chmod +x /etc/cont-init.d/*.sh 2>/dev/null || true
 
 # Copy orchestrator as cont-init.d script (runs once at startup before services)
 COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh
