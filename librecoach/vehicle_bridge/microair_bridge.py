@@ -101,7 +101,15 @@ class MicroAirBridge:
             await device.stop()
 
     async def _scan_loop(self):
+        scan_counter = 0
         while not self._stopping:
+            scan_counter += 1
+            
+            # If devices are found, scan less frequently (every ~10 mins) to improve stability
+            if self._devices and scan_counter % 20 != 1:
+                await asyncio.sleep(self._scan_interval)
+                continue
+
             bus = None
             try:
                 bus = await _get_bus()
@@ -249,6 +257,9 @@ class _MicroAirDevice:
         else:
             raise TimeoutError("GATT services did not resolve within 15s")
 
+        # Give the stack a moment to stabilize after service resolution
+        await asyncio.sleep(2.0)
+
         # Cache characteristic paths
         self._char_paths = {}
         obj_manager = await _get_interface(self._bus, "/", "org.freedesktop.DBus.ObjectManager")
@@ -366,12 +377,19 @@ class _MicroAirDevice:
 
     async def send_command(self, command):
         try:
-            await self._write_json(command)
-        except Exception as exc:
-            log.warning("MicroAir command failed for %s: %s", self.address, exc)
+                await cmd_iface.call_write_value(
+                    json.dumps(command).encode("utf-8"), {}
+                )
+            except Exception as exc:
+                log.debug("MicroAir write failed: %s", exc)
+                await self._disconnect()
+                raise
+
 
     async def _fetch_zone_configs(self, zones):
         for zone in zones:
+            # Add delay between config fetches to be gentle on the connection
+            await asyncio.sleep(2.0)
             response = await self._request_json({"Type": "Get Config", "Zone": zone})
             if not response:
                 continue
@@ -423,7 +441,7 @@ class _MicroAirDevice:
                     log.debug("MicroAir request failed (attempt %d): %s", attempt + 1, exc)
                     await self._disconnect()
                     if attempt == 0:
-                        await asyncio.sleep(2.0)
+                        await asyncio.sleep(5.0)
 
             log.debug("MicroAir request failed after retries: %s", last_exc)
             return None
