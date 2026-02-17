@@ -21,9 +21,4 @@ mkdir -p "$PROJECT_DIR/data"
 # Copy RVC decoder data
 cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 
-# Keep GPL license with the installed project
-if [ -f "$SOURCE_DIR/LICENSE" ]; then
-  cp "$SOURCE_DIR/LICENSE" "$PROJECT_DIR/LICENSE"
-fi
-
 echo "LibreCoach Node-RED initialization (Preserve Mode) complete"

@@ -650,29 +650,19 @@ if [ -z "$EXISTING_SECRET" ] || [ "$EXISTING_SECRET" != "$LIBRECOACH_SECRET" ]; 
   NEW_OPTIONS=$(echo "$NR_OPTIONS" | jq \
     --arg secret "$LIBRECOACH_SECRET" \
     --arg initcmd "$SETTINGS_INIT_CMD" \
-    --arg user "$MQTT_USER" \
-    --arg pass "$MQTT_PASS" \
-    '. + {"credential_secret": $secret, "ssl": false, "init_commands": [$initcmd], "users": [{"username": $user, "password": $pass, "permissions": "*"}]}')
-  bashio::log.info "   > Node-RED user being configured: $MQTT_USER"
-  log_debug "Node-RED options: $(echo "$NEW_OPTIONS" | jq -c '.users')"
+    '. + {"credential_secret": $secret, "ssl": false, "init_commands": [$initcmd]} | del(.users)')
   set_options "$SLUG_NODERED" "$NEW_OPTIONS" || exit 1
   NEEDS_RESTART=true
 else
   CURRENT_INIT_CMD=$(echo "$NR_OPTIONS" | jq -r '.init_commands[0] // empty')
-  CURRENT_USER=$(echo "$NR_OPTIONS" | jq -r --arg user "$MQTT_USER" '(.users // [])[] | select(.username == $user) | .username')
+  HAS_USERS=$(echo "$NR_OPTIONS" | jq -r 'if .users then "true" else "false" end')
 
-  # Check if config needs updating (init command changed or user missing)
-  if [ "$CURRENT_INIT_CMD" != "$SETTINGS_INIT_CMD" ] || [ -z "$CURRENT_USER" ]; then
-    bashio::log.info "   > Updating Node-RED configuration (init commands / users)..."
+  # Check if config needs updating (init command changed or users auth still present)
+  if [ "$CURRENT_INIT_CMD" != "$SETTINGS_INIT_CMD" ] || [ "$HAS_USERS" = "true" ]; then
+    bashio::log.info "   > Updating Node-RED configuration (init commands)..."
     NEW_OPTIONS=$(echo "$NR_OPTIONS" | jq \
       --arg initcmd "$SETTINGS_INIT_CMD" \
-      --arg user "$MQTT_USER" \
-      --arg pass "$MQTT_PASS" \
-      '
-      . + {"init_commands": [$initcmd]} |
-      .users = (.users // []) |
-      .users |= (map(select(.username != $user)) + [{"username": $user, "password": $pass, "permissions": "*"}])
-    ')
+      '. + {"init_commands": [$initcmd]} | del(.users)')
     set_options "$SLUG_NODERED" "$NEW_OPTIONS" || exit 1
     NEEDS_RESTART=true
   else
