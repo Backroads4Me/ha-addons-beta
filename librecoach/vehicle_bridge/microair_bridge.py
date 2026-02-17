@@ -194,6 +194,11 @@ class _MicroAirDevice:
         self._poll_task = None
         self._zone_configs = {}
 
+        # Persistent connection state
+        self._bus = None
+        self._char_paths = {}  # uuid -> dbus path
+        self._connected = False
+
     def start(self, interval):
         if self._poll_task and not self._poll_task.done():
             return
@@ -207,6 +212,89 @@ class _MicroAirDevice:
                 await self._poll_task
             except asyncio.CancelledError:
                 pass
+        await self._disconnect()
+
+    async def _ensure_connected(self):
+        """Connect to device if not already connected. Reuses bus and caches char paths."""
+        if self._connected and self._bus:
+            # Verify connection is still alive
+            try:
+                props_iface = await _get_interface(
+                    self._bus, self.device_path, "org.freedesktop.DBus.Properties"
+                )
+                connected = await props_iface.call_get("org.bluez.Device1", "Connected")
+                if connected.value:
+                    return
+            except Exception:
+                pass
+            # Connection lost, clean up
+            log.debug("MicroAir %s: connection lost, reconnecting", self.address)
+            await self._disconnect()
+
+        self._bus = await _get_bus()
+        device_iface = await _get_interface(self._bus, self.device_path, "org.bluez.Device1")
+        props_iface = await _get_interface(
+            self._bus, self.device_path, "org.freedesktop.DBus.Properties"
+        )
+
+        await device_iface.call_connect()
+        log.debug("MicroAir %s: BLE connect requested", self.address)
+
+        # Wait for ServicesResolved
+        for _ in range(30):
+            resolved = await props_iface.call_get("org.bluez.Device1", "ServicesResolved")
+            if resolved.value:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            raise TimeoutError("GATT services did not resolve within 15s")
+
+        # Cache characteristic paths
+        self._char_paths = {}
+        obj_manager = await _get_interface(self._bus, "/", "org.freedesktop.DBus.ObjectManager")
+        objects = await obj_manager.call_get_managed_objects()
+        for path, interfaces in objects.items():
+            if not path.startswith(self.device_path + "/"):
+                continue
+            if "org.bluez.GattCharacteristic1" not in interfaces:
+                continue
+            props = interfaces["org.bluez.GattCharacteristic1"]
+            char_uuid = props.get("UUID", Variant("s", "")).value.lower()
+            self._char_paths[char_uuid] = path
+
+        # Send password once after connect
+        if self.password:
+            pw_path = self._char_paths.get(UUIDS["passwordCmd"])
+            if pw_path:
+                char_iface = await _get_interface(
+                    self._bus, pw_path, "org.bluez.GattCharacteristic1"
+                )
+                await char_iface.call_write_value(
+                    list(self.password.encode("utf-8")), {}
+                )
+                await asyncio.sleep(0.2)
+                log.debug("MicroAir %s: password sent", self.address)
+
+        self._connected = True
+        log.info("MicroAir %s: connected and GATT resolved", self.address)
+
+    async def _disconnect(self):
+        """Disconnect and clean up bus."""
+        self._connected = False
+        self._char_paths = {}
+        if self._bus:
+            try:
+                device_iface = await _get_interface(
+                    self._bus, self.device_path, "org.bluez.Device1"
+                )
+                await device_iface.call_disconnect()
+            except Exception:
+                pass
+            try:
+                self._bus.disconnect()
+            except Exception:
+                pass
+            self._bus = None
 
     async def _poll_loop(self, interval):
         while not self._stopping:
@@ -263,6 +351,8 @@ class _MicroAirDevice:
                     )
         except Exception as exc:
             log.warning("MicroAir poll failed for %s: %s", self.address, exc)
+            # Connection is likely broken, tear it down so next poll reconnects
+            await self._disconnect()
             self.mqtt.publish(
                 f"librecoach/ble/microair/{self.address}/available",
                 "offline",
@@ -296,135 +386,63 @@ class _MicroAirDevice:
                 "MA": cfg_data.get("MA", [0] * 16),
             }
 
-    async def _connect_and_resolve(self, bus):
-        """Connect to device and wait for GATT services to resolve."""
-        device_iface = await _get_interface(bus, self.device_path, "org.bluez.Device1")
-        props_iface = await _get_interface(
-            bus, self.device_path, "org.freedesktop.DBus.Properties"
-        )
-
-        await device_iface.call_connect()
-
-        # Wait for ServicesResolved
-        for _ in range(30):
-            resolved = await props_iface.call_get(
-                "org.bluez.Device1", "ServicesResolved"
-            )
-            if resolved.value:
-                break
-            await asyncio.sleep(0.5)
-        else:
-            raise TimeoutError("GATT services did not resolve within 15s")
-
-        return device_iface
-
-    async def _find_characteristic(self, bus, uuid):
-        """Find a GATT characteristic by UUID under the device path."""
-        obj_manager = await _get_interface(bus, "/", "org.freedesktop.DBus.ObjectManager")
-        objects = await obj_manager.call_get_managed_objects()
-
-        for path, interfaces in objects.items():
-            if not path.startswith(self.device_path + "/"):
-                continue
-            if "org.bluez.GattCharacteristic1" not in interfaces:
-                continue
-            props = interfaces["org.bluez.GattCharacteristic1"]
-            char_uuid = props.get("UUID", Variant("s", "")).value
-            if char_uuid.lower() == uuid.lower():
-                return path
-        return None
-
-    async def _write_characteristic(self, bus, char_path, data):
-        """Write bytes to a GATT characteristic."""
-        char_iface = await _get_interface(bus, char_path, "org.bluez.GattCharacteristic1")
-        await char_iface.call_write_value(list(data), {})
-
-    async def _read_characteristic(self, bus, char_path):
-        """Read bytes from a GATT characteristic."""
-        char_iface = await _get_interface(bus, char_path, "org.bluez.GattCharacteristic1")
-        result = await char_iface.call_read_value({})
-        return bytes(result)
-
     async def _request_json(self, command):
         async with self._lock:
-            bus = None
             try:
-                bus = await _get_bus()
-                await self._connect_and_resolve(bus)
+                await self._ensure_connected()
 
-                if self.password:
-                    pw_path = await self._find_characteristic(bus, UUIDS["passwordCmd"])
-                    if pw_path:
-                        await self._write_characteristic(
-                            bus, pw_path, self.password.encode("utf-8")
-                        )
-                        await asyncio.sleep(0.2)
-
-                cmd_path = await self._find_characteristic(bus, UUIDS["jsonCmd"])
-                ret_path = await self._find_characteristic(bus, UUIDS["jsonReturn"])
+                cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
+                ret_path = self._char_paths.get(UUIDS["jsonReturn"])
 
                 if not cmd_path or not ret_path:
                     log.debug("MicroAir GATT characteristics not found")
                     return None
 
-                await self._write_characteristic(
-                    bus, cmd_path, json.dumps(command).encode("utf-8")
+                cmd_iface = await _get_interface(
+                    self._bus, cmd_path, "org.bluez.GattCharacteristic1"
+                )
+                await cmd_iface.call_write_value(
+                    list(json.dumps(command).encode("utf-8")), {}
                 )
                 await asyncio.sleep(1.0)
-                payload = await self._read_characteristic(bus, ret_path)
+
+                ret_iface = await _get_interface(
+                    self._bus, ret_path, "org.bluez.GattCharacteristic1"
+                )
+                result = await ret_iface.call_read_value({})
+                payload = bytes(result)
                 if not payload:
                     return None
                 return json.loads(payload.decode("utf-8"))
             except (OSError, asyncio.TimeoutError, json.JSONDecodeError, TimeoutError) as exc:
                 log.debug("MicroAir request failed: %s", exc)
+                await self._disconnect()
                 return None
             except Exception as exc:
                 log.debug("MicroAir request failed: %s", exc)
+                await self._disconnect()
                 return None
-            finally:
-                if bus:
-                    try:
-                        device_iface = await _get_interface(
-                            bus, self.device_path, "org.bluez.Device1"
-                        )
-                        await device_iface.call_disconnect()
-                    except Exception:
-                        pass
-                    bus.disconnect()
 
     async def _write_json(self, command):
         async with self._lock:
-            bus = None
             try:
-                bus = await _get_bus()
-                await self._connect_and_resolve(bus)
+                await self._ensure_connected()
 
-                if self.password:
-                    pw_path = await self._find_characteristic(bus, UUIDS["passwordCmd"])
-                    if pw_path:
-                        await self._write_characteristic(
-                            bus, pw_path, self.password.encode("utf-8")
-                        )
-                        await asyncio.sleep(0.2)
-
-                cmd_path = await self._find_characteristic(bus, UUIDS["jsonCmd"])
+                cmd_path = self._char_paths.get(UUIDS["jsonCmd"])
                 if not cmd_path:
                     log.debug("MicroAir jsonCmd characteristic not found")
                     return
 
-                await self._write_characteristic(
-                    bus, cmd_path, json.dumps(command).encode("utf-8")
+                cmd_iface = await _get_interface(
+                    self._bus, cmd_path, "org.bluez.GattCharacteristic1"
                 )
-            finally:
-                if bus:
-                    try:
-                        device_iface = await _get_interface(
-                            bus, self.device_path, "org.bluez.Device1"
-                        )
-                        await device_iface.call_disconnect()
-                    except Exception:
-                        pass
-                    bus.disconnect()
+                await cmd_iface.call_write_value(
+                    list(json.dumps(command).encode("utf-8")), {}
+                )
+            except Exception as exc:
+                log.debug("MicroAir write failed: %s", exc)
+                await self._disconnect()
+                raise
 
 
 def _parse_status(status):
