@@ -3,6 +3,7 @@ import json
 import logging
 
 from bleak_retry_connector import establish_connection, BleakClientWithServiceCache
+from homeassistant.components import mqtt
 from homeassistant.components.bluetooth import (
     async_ble_device_from_address,
     BluetoothCallbackMatcher,
@@ -43,7 +44,8 @@ class BleBridgeManager:
 
         # Subscribe to MQTT command topics
         # Uses wildcard: librecoach/ble/+/+/set
-        await self.hass.components.mqtt.async_subscribe(
+        await mqtt.async_subscribe(
+            self.hass,
             "librecoach/ble/+/+/set",
             self._on_mqtt_command,
             qos=1,
@@ -128,19 +130,21 @@ class BleBridgeManager:
                     topic = TOPIC_STATE.format(
                         device_type=device_type, address=address
                     )
-                    await self.hass.components.mqtt.async_publish(
-                        topic, json.dumps(zone_state), qos=1, retain=False
+                    await mqtt.async_publish(
+                        self.hass, topic, json.dumps(zone_state), qos=1, retain=False
                     )
 
                 # Mark online
                 failure_count = 0
-                await self.hass.components.mqtt.async_publish(
+                await mqtt.async_publish(
+                    self.hass,
                     TOPIC_AVAILABLE.format(
                         device_type=device_type, address=address
                     ),
                     "online", qos=1, retain=True,
                 )
-                await self.hass.components.mqtt.async_publish(
+                await mqtt.async_publish(
+                    self.hass,
                     TOPIC_BRIDGE.format(
                         device_type=device_type, address=address
                     ),
@@ -156,13 +160,15 @@ class BleBridgeManager:
                 handler._authenticated = False  # Force re-auth on reconnect
 
                 if failure_count >= 10:
-                    await self.hass.components.mqtt.async_publish(
+                    await mqtt.async_publish(
+                        self.hass,
                         TOPIC_AVAILABLE.format(
                             device_type=device_type, address=address
                         ),
                         "offline", qos=1, retain=True,
                     )
-                    await self.hass.components.mqtt.async_publish(
+                    await mqtt.async_publish(
+                        self.hass,
                         TOPIC_BRIDGE.format(
                             device_type=device_type, address=address
                         ),

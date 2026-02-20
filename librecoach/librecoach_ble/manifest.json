@@ -6,12 +6,6 @@
     "documentation": "https://librecoach.com",
     "integration_type": "hub",
     "iot_class": "local_polling",
-    "bluetooth": [
-        {
-            "local_name": "EasyTouch*",
-            "connectable": true
-        }
-    ],
     "requirements": [],
-    "version": "1.0.0"
+    "version": "1.0.1"
 }
