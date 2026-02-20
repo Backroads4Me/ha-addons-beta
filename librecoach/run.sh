@@ -511,12 +511,14 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
 
     if [ -d "$INTEGRATION_DST" ]; then
         INSTALLED_VER=$(jq -r '.version // "0"' "$INTEGRATION_DST/manifest.json" 2>/dev/null || echo "0")
-        BUNDLED_VER=$(jq -r '.version // "0"' "$INTEGRATION_SRC/manifest.json" 2>/dev/null || echo "0")
 
-        if [ "$INSTALLED_VER" != "$BUNDLED_VER" ]; then
-            bashio::log.info "   Updating librecoach_ble ($INSTALLED_VER → $BUNDLED_VER)..."
+        if [ "$INSTALLED_VER" != "$ADDON_VERSION" ]; then
+            bashio::log.info "   Updating librecoach_ble ($INSTALLED_VER → $ADDON_VERSION)..."
             rm -rf "$INTEGRATION_DST"
             cp -r "$INTEGRATION_SRC" "$INTEGRATION_DST"
+            # Stamp add-on version into deployed manifest
+            jq --arg v "$ADDON_VERSION" '.version = $v' "$INTEGRATION_DST/manifest.json" > /tmp/manifest.json \
+                && mv /tmp/manifest.json "$INTEGRATION_DST/manifest.json"
             NEEDS_HA_RESTART=true
         else
             bashio::log.info "   librecoach_ble is up to date (v$INSTALLED_VER)"
@@ -525,6 +527,9 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
         bashio::log.info "   Installing librecoach_ble integration..."
         mkdir -p /config/custom_components
         cp -r "$INTEGRATION_SRC" "$INTEGRATION_DST"
+        # Stamp add-on version into deployed manifest
+        jq --arg v "$ADDON_VERSION" '.version = $v' "$INTEGRATION_DST/manifest.json" > /tmp/manifest.json \
+            && mv /tmp/manifest.json "$INTEGRATION_DST/manifest.json"
         NEEDS_HA_RESTART=true
     fi
 
