@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.45"
+version: "1.0.46"
 slug: "librecoach"
 description: "Smart home control for your RV"
 url: "https://librecoach.com"

@@ -73,7 +73,9 @@ class BleBridgeManager:
         address = service_info.address.lower()
 
         if address in self._active_devices:
-            return  # Already tracking
+            # Update stored BLE device reference (keeps it fresh for next poll)
+            self._active_devices[address]["ble_device"] = service_info.device
+            return
 
         # Find matching handler
         for handler_class in DEVICE_HANDLERS:
@@ -89,8 +91,26 @@ class BleBridgeManager:
                 self._active_devices[address] = {
                     "handler": handler,
                     "task": task,
+                    "ble_device": service_info.device,
                 }
                 return
+
+    def _get_ble_device(self, address: str):
+        """Get BLE device, trying HA's cache first then falling back to stored ref."""
+        # Try HA's Bluetooth manager first (picks best adapter/proxy)
+        ble_device = async_ble_device_from_address(
+            self.hass, address, connectable=True
+        )
+        if ble_device:
+            return ble_device
+
+        # Fall back to device reference from last advertisement
+        entry = self._active_devices.get(address)
+        if entry and entry.get("ble_device"):
+            _LOGGER.debug("Using stored BLE device for %s", address)
+            return entry["ble_device"]
+
+        return None
 
     async def _poll_loop(self, handler, address: str):
         """Poll a device at regular intervals, publish state to MQTT."""
@@ -100,10 +120,7 @@ class BleBridgeManager:
 
         while not self._stopping:
             try:
-                # Get BLE device from HA (picks best adapter/proxy automatically)
-                ble_device = async_ble_device_from_address(
-                    self.hass, address, connectable=True
-                )
+                ble_device = self._get_ble_device(address)
                 if not ble_device:
                     raise Exception(f"BLE device {address} not available")
 
@@ -199,9 +216,7 @@ class BleBridgeManager:
             return
 
         try:
-            ble_device = async_ble_device_from_address(
-                self.hass, address, connectable=True
-            )
+            ble_device = self._get_ble_device(address)
             if not ble_device:
                 _LOGGER.warning("BLE device %s not available for command", address)
                 return
