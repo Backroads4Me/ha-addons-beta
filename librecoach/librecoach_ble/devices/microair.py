@@ -124,6 +124,7 @@ class MicroAirHandler(BleDeviceHandler):
             return {"available_zones": [0], "zones": {0: {}}}
 
         param = status.get("PRM", [])
+        outdoor_temp = param[2] if len(param) > 2 else None
         zone_data = {}
         available_zones = []
 
@@ -154,8 +155,8 @@ class MicroAirHandler(BleDeviceHandler):
             except (IndexError, TypeError):
                 continue
 
-            if len(param) > 2 and zone_num == 0:
-                zone_status["outdoorTemperature"] = param[2]
+            if outdoor_temp is not None:
+                zone_status["outdoorTemperature"] = outdoor_temp
 
             if len(param) > 1:
                 flags_register = param[1]
