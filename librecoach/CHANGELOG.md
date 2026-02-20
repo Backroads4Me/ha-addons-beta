@@ -1,3 +1,33 @@
+## [1.1.5] - 2026-02-19
+
+**⚠️ Action Required:** The CAN-to-MQTT Bridge add-on is no onger required, it will be automatically disabled. You can safely uninstall it from **Settings → Apps**.
+
+### Added
+
+- Micro-Air EasyTouch thermostat integration via Bluetooth (enable under Configuration → Enable Micro-Air EasyTouch Thermostat Integration)
+- Victron integration can now be disabled under Configuration
+
+### Changed
+
+- CAN bridge is now built into LibreCoach — the standalone CAN-to-MQTT Bridge add-on is no longer required
+- Fixed an issue with RV-C polling in a new installations
+
+### Fixed
+
+- Fixed takeover prompt appearing on fresh installs when watchdog restarts the add-on before Node-RED configuration completes
+
+## [1.0.3] - 2026-02-15
+
+**⚠️ Action Required:** Start the addon once after this update. It will configure itself to auto-start — future updates will apply automatically.
+
+### Added
+
+- Export/Import Templates to share or backup labels for switches.
+
+### Changed
+
+- Addon stays running after orchestration for automatic restart on updates
+
 ## [1.0.2] - 2026-02-14
 
 ### Added
