@@ -21,8 +21,8 @@ configuration:
     name: "Allow Node-RED Overwrite (Initial install config only)"
     description: "Allows LibreCoach to overwrite your existing Node-RED flows. WARNING: This will delete your current flows!"
   prevent_flow_updates:
-    name: "Prevent Flow Updates (Referenced at every update)"
-    description: "Enable this to PRESERVE your customized flows during add-on updates. Core files (decoders, etc.) will still be updated, but flows.json will not be touched."
+    name: "Prevent Flow Updates (Safe Install)"
+    description: "Enable this to PRESERVE your customized flows during add-on updates. On new installations, this allows LibreCoach to manage Node-RED without overwriting your existing flows, bypassing the takeover confirmation."
   mqtt_host:
     name: "MQTT Broker Host"
     description: "Hostname or IP address of the MQTT broker (defaults to core-mosquitto)."
