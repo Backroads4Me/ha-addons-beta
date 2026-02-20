@@ -25,7 +25,7 @@ HEAT_TYPE_REVERSE = {
     7: "Heat Strip", 12: "Electric Heat",
 }
 
-FAN_MODE_MAP = {0: "off", 1: "low", 2: "high", 3: "medium", 128: "auto"}
+FAN_MODE_MAP = {0: "auto", 1: "low", 2: "high", 3: "medium", 128: "auto"}
 
 
 class MicroAirHandler(BleDeviceHandler):
@@ -187,7 +187,7 @@ class MicroAirHandler(BleDeviceHandler):
 
             fan_num = self._select_fan_mode(zone_status)
             zone_status["fan_mode_num"] = fan_num
-            zone_status["fan_mode"] = FAN_MODE_MAP.get(fan_num, "off")
+            zone_status["fan_mode"] = FAN_MODE_MAP.get(fan_num, "auto")
 
             zone_data[zone_num] = zone_status
             available_zones.append(zone_num)

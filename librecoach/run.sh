@@ -506,30 +506,26 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
             ble_scan_interval: $scan_interval
         }' > /config/.librecoach-ble-config.json
 
-    # Install/update integration files
+    # Install/update integration files (only restart HA if code actually changed)
     NEEDS_HA_RESTART=false
 
-    if [ -d "$INTEGRATION_DST" ]; then
-        INSTALLED_VER=$(jq -r '.version // "0"' "$INTEGRATION_DST/manifest.json" 2>/dev/null || echo "0")
+    BUNDLED_HASH=$(find "$INTEGRATION_SRC" -type f | sort | xargs md5sum 2>/dev/null | md5sum | awk '{print $1}')
 
-        if [ "$INSTALLED_VER" != "$ADDON_VERSION" ]; then
-            bashio::log.info "   Updating librecoach_ble ($INSTALLED_VER → $ADDON_VERSION)..."
+    if [ -d "$INTEGRATION_DST" ]; then
+        INSTALLED_HASH=$(find "$INTEGRATION_DST" -type f | sort | xargs md5sum 2>/dev/null | md5sum | awk '{print $1}')
+
+        if [ "$BUNDLED_HASH" != "$INSTALLED_HASH" ]; then
+            bashio::log.info "   Updating librecoach_ble integration..."
             rm -rf "$INTEGRATION_DST"
             cp -r "$INTEGRATION_SRC" "$INTEGRATION_DST"
-            # Stamp add-on version into deployed manifest
-            jq --arg v "$ADDON_VERSION" '.version = $v' "$INTEGRATION_DST/manifest.json" > /tmp/manifest.json \
-                && mv /tmp/manifest.json "$INTEGRATION_DST/manifest.json"
             NEEDS_HA_RESTART=true
         else
-            bashio::log.info "   librecoach_ble is up to date (v$INSTALLED_VER)"
+            bashio::log.info "   librecoach_ble is up to date"
         fi
     else
         bashio::log.info "   Installing librecoach_ble integration..."
         mkdir -p /config/custom_components
         cp -r "$INTEGRATION_SRC" "$INTEGRATION_DST"
-        # Stamp add-on version into deployed manifest
-        jq --arg v "$ADDON_VERSION" '.version = $v' "$INTEGRATION_DST/manifest.json" > /tmp/manifest.json \
-            && mv /tmp/manifest.json "$INTEGRATION_DST/manifest.json"
         NEEDS_HA_RESTART=true
     fi
 
