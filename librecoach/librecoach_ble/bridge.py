@@ -170,10 +170,16 @@ class BleBridgeManager:
 
             except Exception as exc:
                 failure_count += 1
-                _LOGGER.warning(
-                    "%s poll failed for %s (count %d): %s",
-                    device_type, address, failure_count, exc,
-                )
+                if failure_count <= 3:
+                    _LOGGER.debug(
+                        "%s poll failed for %s (count %d): %s",
+                        device_type, address, failure_count, exc,
+                    )
+                else:
+                    _LOGGER.warning(
+                        "%s poll failed for %s (count %d): %s",
+                        device_type, address, failure_count, exc,
+                    )
                 handler._authenticated = False  # Force re-auth on reconnect
 
                 if failure_count >= 10:
