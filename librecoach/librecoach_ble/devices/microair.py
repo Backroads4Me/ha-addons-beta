@@ -25,7 +25,7 @@ HEAT_TYPE_REVERSE = {
     7: "Heat Strip", 12: "Electric Heat",
 }
 
-FAN_MODE_MAP = {0: "auto", 1: "low", 2: "medium", 3: "high", 128: "auto"}
+FAN_MODE_MAP = {0: "auto", 1: "low", 2: "high", 128: "auto"}
 
 
 class MicroAirHandler(BleDeviceHandler):
