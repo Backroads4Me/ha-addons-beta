@@ -37,9 +37,10 @@ Updates are applied automatically. When HAOS downloads a new version, it restart
 
 ### Safety Settings
 
-| Option                     | Type    | Default | Description                                                                                                                                    |
-| :------------------------- | :------ | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| `confirm_nodered_takeover` | Boolean | `false` | **DANGER:** Required if Node-RED is already installed. Setting this to `true` allows LibreCoach to **overwrite** your existing Node-RED flows. |
+| Option                     | Type    | Default | Description                                                                                                                                                                             |
+| :------------------------- | :------ | :------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Allow Node-RED Overwrite` | Boolean | `false` | **DANGER:** Only used during first install. If Node-RED is already installed, this must be `true` to allow LibreCoach to delete your existing flows and install the LibreCoach system.  |
+| `Prevent Flow Updates`     | Boolean | `false` | **SAFETY:** If `true`, LibreCoach will never update your Node-RED flows when the add-on is updated. Use this if you have customized your flows and want to prevent them from being overwritten. |
 
 ### Automated Settings
 
@@ -58,25 +59,34 @@ LibreCoach requires a physical connection to your RV's CAN bus.
 
 ## Troubleshooting
 
-### "Installation aborted to protect existing flows"
-
-**Reason:** You have Node-RED installed, and LibreCoach is refusing to delete your work.
-**Fix:**
-
-1.  Backup your existing flows if you want to keep them.
-2.  Go to the **Configuration** tab.
-3.  Toggle **Allow Node-RED Overwrite** (`confirm_nodered_takeover`) to on.
-4.  Restart LibreCoach.
-
-### "MQTT broker not responding"
-
-**Reason:** The Mosquitto add-on is not running or is unhealthy.
-**Fix:** Check the "Mosquitto broker" add-on logs. Ensure it is started. LibreCoach cannot proceed without a working broker.
+### Protect Your Flows
+ 
+ If you have spent time customizing your LibreCoach flows and want to ensure a future update doesn't wipe them out:
+ 
+ 1.  Go to the **Configuration** tab.
+ 2.  Toggle **Prevent Flow Updates** to `true`.
+ 3.  Scroll down and click **Save**.
+ 
+ Future updates will still update the system software (CAN bridge, Python scripts), but your Node-RED flows will remain untouched.
+ 
+ ### "Installation aborted to protect existing flows"
+ 
+ **Reason:** You have Node-RED installed, and LibreCoach is refusing to delete your work.
+ **Fix:**
+ 
+ 1.  Backup your existing flows if you want to keep them.
+ 2.  Go to the **Configuration** tab.
+ 3.  Toggle **Allow Node-RED Overwrite** to `true`.
+ 4.  Scroll down and click 'Save'
 
 ### Using Node-RED Independently
 
 If you wish to stop LibreCoach from managing Node-RED:
 
 1.  Uninstall the **LibreCoach** add-on.
-2.  Go to the **Node-RED** add-on configuration.
-3.  Edit the configuration in YAML and remove the `init_commands` that LibreCoach injected.
+2.  Go to the **Node-RED** add-on configuration tab.
+3.  Just above the "Show unused optional configuration options' toggle you should see:
+
+    `bash /share/.librecoach/init-nodered.sh` &#x2716;
+
+4.  Click the &#x2716; to delete the entry and then click save.
