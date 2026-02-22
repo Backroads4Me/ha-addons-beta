@@ -1,19 +1,4 @@
 configuration:
-  victron_enabled:
-    name: "Enable Victron Integration"
-    description: "Enables integration with Victron Energy systems via MQTT. Requires a GX device with MQTT enabled. See the full online documentation for more details."
-  microair_enabled:
-    name: "Enable Micro-Air EasyTouch Thermostat Integration"
-    description: "Enables support for Micro-Air EasyTouch RV thermostats via Bluetooth."
-  microair_email:
-    name: "Micro-Air Account Email"
-    description: "Email address used for your Micro-Air EasyTouch account (required if password is set)."
-  microair_password:
-    name: "Micro-Air Account Password"
-    description: "Password for your Micro-Air EasyTouch account (required for some devices)."
-  beta_enabled:
-    name: "Enable Beta Testing"
-    description: "Enables experimental beta features. Use at your own risk."
   debug_logging:
     name: "Enable Debug Logging"
     description: "Enables detailed debug logging for troubleshooting."
@@ -35,18 +20,6 @@ configuration:
   mqtt_pass:
     name: "MQTT Password"
     description: "Password for MQTT authentication."
-  mqtt_topic_raw:
-    name: "CAN Raw Topic"
-    description: "MQTT topic for publishing raw CAN frames."
-  mqtt_topic_send:
-    name: "CAN Send Topic"
-    description: "MQTT topic for sending CAN frames."
-  mqtt_topic_status:
-    name: "CAN Status Topic"
-    description: "MQTT topic for publishing CAN interface status."
   can_interface:
     name: "CAN Interface"
     description: "System interface name for the CAN adapter (e.g., can0)."
-  can_bitrate:
-    name: "CAN Bitrate"
-    description: "Bitrate for the CAN bus connection."

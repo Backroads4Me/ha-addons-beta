@@ -1,3 +1,16 @@
+## [1.0.55] - 2026-02-22
+
+### Added
+
+- Geo Bridge: automatically syncs Home Assistant location, timezone, and elevation from a GPS device tracker
+- Settings UI: new sidebar panel (LibreCoach icon) for configuring integrations and geo tracking with entity pickers
+- Settings migration: existing config values are automatically carried over on first startup after update
+
+### Changed
+
+- Victron, Micro-Air, BLE, and beta settings moved from Configuration tab to Settings UI
+- CAN bridge constants (bitrate, MQTT topics) are no longer user-configurable
+
 ## [1.1.5] - 2026-02-19
 
 **⚠️ Action Required:** The CAN-to-MQTT Bridge add-on is no onger required, it will be automatically disabled. You can safely uninstall it from **Settings → Apps**.

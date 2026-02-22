@@ -1,19 +1,30 @@
 import asyncio
 import json
 import logging
+import os
 import signal
 
 from mqtt_client import MqttClient
 from can_bridge import CanBridge
+from geo_bridge import GeoBridge
 # from onecontrol_bridge import OneControlBridge
 
 # NOTE: TrumaBridge (LIN serial) is on hold — not yet implemented.
 # When ready, add: from truma_bridge import TrumaBridge
 
+SETTINGS_PATH = "/data/librecoach-settings.json"
+
 
 def _load_config():
     with open("/data/options.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+        config = json.load(f)
+
+    # Merge Settings UI config (overrides/extends bootstrap options)
+    if os.path.exists(SETTINGS_PATH):
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            config.update(json.load(f))
+
+    return config
 
 
 def _configure_logging(config):
@@ -34,6 +45,7 @@ async def main():
 
     modules = [
         CanBridge(config, mqtt),
+        GeoBridge(config, mqtt),
         # OneControlBridge(config, mqtt),
         # TrumaBridge(config, mqtt),  # On hold
     ]

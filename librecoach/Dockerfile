@@ -62,6 +62,9 @@ COPY librecoach_ble /opt/librecoach_ble
 # Copy vehicle bridge source
 COPY vehicle_bridge /opt/vehicle_bridge
 
+# Copy settings server (ingress sidebar UI)
+COPY settings_server /opt/settings_server
+
 # Copy s6 service definitions and cont-init.d scripts
 COPY rootfs /
 RUN chmod +x /etc/cont-init.d/*.sh 2>/dev/null || true
@@ -70,6 +73,6 @@ RUN chmod +x /etc/cont-init.d/*.sh 2>/dev/null || true
 COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh
 
 # Strip Windows CRLF line endings from all scripts and s6 config files
-RUN find /etc/s6-overlay /etc/cont-init.d /opt/vehicle_bridge /opt/librecoach-project \
-    /opt/librecoach_ble \
+RUN find /etc/s6-overlay /etc/cont-init.d /opt/vehicle_bridge /opt/settings_server \
+    /opt/librecoach-project /opt/librecoach_ble \
     -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true

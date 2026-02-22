@@ -1,0 +1,2 @@
+#!/usr/bin/with-contenv bashio
+exec python3 /opt/settings_server/server.py

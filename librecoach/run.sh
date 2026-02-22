@@ -23,12 +23,60 @@ SLUG_NODERED="a0d7b954_nodered"
 STATE_FILE="/data/.librecoach-state.json"
 ADDON_VERSION=$(bashio::addon.version)
 
-# Config values used by orchestrator
+# Config values used by orchestrator (bootstrap — from config.yaml)
 MQTT_USER=$(bashio::config 'mqtt_user')
 MQTT_PASS=$(bashio::config 'mqtt_pass')
 DEBUG_LOGGING=$(bashio::config 'debug_logging')
-VICTRON_ENABLED=$(bashio::config 'victron_enabled')
-BETA_ENABLED=$(bashio::config 'beta_enabled')
+
+# Settings UI config file — migrated options live here
+SETTINGS_FILE="/data/librecoach-settings.json"
+
+# Migrate settings on first run after update (preserves user's existing values)
+if [ ! -f "$SETTINGS_FILE" ]; then
+    bashio::log.info "Migrating settings to $SETTINGS_FILE..."
+    if [ -f "/data/options.json" ]; then
+        jq -n \
+            --argjson victron "$(jq -r '.victron_enabled // true' /data/options.json)" \
+            --argjson microair "$(jq -r '.microair_enabled // false' /data/options.json)" \
+            --arg microair_email "$(jq -r '.microair_email // ""' /data/options.json)" \
+            --arg microair_password "$(jq -r '.microair_password // ""' /data/options.json)" \
+            --argjson ble_scan "$(jq -r '.ble_scan_interval // 30' /data/options.json)" \
+            --argjson beta "$(jq -r '.beta_enabled // false' /data/options.json)" \
+            '{
+                geo_enabled: false,
+                geo_device_tracker_primary: "",
+                geo_device_tracker_secondary: "",
+                geo_update_threshold: 10,
+                victron_enabled: $victron,
+                microair_enabled: $microair,
+                microair_email: $microair_email,
+                microair_password: $microair_password,
+                ble_scan_interval: $ble_scan,
+                beta_enabled: $beta
+            }' > "$SETTINGS_FILE"
+        bashio::log.info "   Settings migrated successfully"
+    else
+        bashio::log.warning "   /data/options.json not found, using defaults"
+        jq -n '{
+            geo_enabled: false,
+            geo_device_tracker_primary: "",
+            geo_device_tracker_secondary: "",
+            geo_update_threshold: 10,
+            victron_enabled: true,
+            microair_enabled: false,
+            microair_email: "",
+            microair_password: "",
+            ble_scan_interval: 30,
+            beta_enabled: false
+        }' > "$SETTINGS_FILE"
+        bashio::log.info "   Default settings created successfully"
+    fi
+fi
+
+# Read settings from Settings UI config
+VICTRON_ENABLED=$(jq -r '.victron_enabled // true' "$SETTINGS_FILE")
+BETA_ENABLED=$(jq -r '.beta_enabled // false' "$SETTINGS_FILE")
+MICROAIR_ENABLED=$(jq -r '.microair_enabled // false' "$SETTINGS_FILE")
 
 # ======================== 
 # Orchestrator Helpers
@@ -472,7 +520,6 @@ fi
 
 # Publish config toggles as retained MQTT messages for Node-RED
 mqtt_pub() { mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" -r -q 1 "$@"; }
-MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
 mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
 mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
 mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
@@ -481,7 +528,6 @@ bashio::log.info "   Published config toggles to MQTT (victron=$VICTRON_ENABLED,
 # ========================
 # Phase 1.5: LibreCoach BLE Integration
 # ========================
-MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
 
 if [ "$MICROAIR_ENABLED" = "true" ]; then
     bashio::log.info "Phase 1.5: LibreCoach BLE Integration"
@@ -490,9 +536,9 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
     INTEGRATION_DST="/config/custom_components/librecoach_ble"
 
     # Write config file for the integration to read at runtime
-    MICROAIR_PASSWORD=$(bashio::config 'microair_password')
-    MICROAIR_EMAIL=$(bashio::config 'microair_email')
-    BLE_SCAN_INTERVAL=$(bashio::config 'ble_scan_interval')
+    MICROAIR_PASSWORD=$(jq -r '.microair_password // ""' "$SETTINGS_FILE")
+    MICROAIR_EMAIL=$(jq -r '.microair_email // ""' "$SETTINGS_FILE")
+    BLE_SCAN_INTERVAL=$(jq -r '.ble_scan_interval // 30' "$SETTINGS_FILE")
 
     jq -n \
         --argjson enabled true \

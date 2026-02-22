@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LibreCoach Settings</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>LibreCoach Settings</h1>
+      <div id="version"></div>
+    </header>
+
+    <!-- Geo Location -->
+    <section class="card">
+      <h2>Geo Location</h2>
+      <p class="help">Automatically updates Home Assistant's home location, timezone, and elevation when the RV moves.
+      </p>
+
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="geo_enabled">
+          <span>Enable Geo Location Tracking</span>
+        </label>
+      </div>
+
+      <div class="field" id="geo-fields">
+        <label for="geo_device_tracker_primary">Primary GPS Tracker</label>
+        <div class="entity-picker">
+          <input type="text" id="geo_device_tracker_primary" placeholder="device_tracker.phone" autocomplete="off">
+          <ul class="entity-dropdown" id="dropdown-primary"></ul>
+        </div>
+
+        <label for="geo_device_tracker_secondary">Secondary GPS Tracker (Fallback)</label>
+        <div class="entity-picker">
+          <input type="text" id="geo_device_tracker_secondary" placeholder="Optional" autocomplete="off">
+          <ul class="entity-dropdown" id="dropdown-secondary"></ul>
+        </div>
+
+        <label for="geo_update_threshold">Update Threshold</label>
+        <div class="input-with-unit">
+          <input type="number" id="geo_update_threshold" min="1" max="500" value="10">
+          <span class="unit">miles</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integrations -->
+    <section class="card">
+      <h2>Integrations</h2>
+
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="victron_enabled">
+          <span>Enable Victron Energy Integration</span>
+        </label>
+        <p class="help">Requires a GX device with MQTT enabled.</p>
+      </div>
+
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="microair_enabled">
+          <span>Enable Micro-Air EasyTouch Thermostat</span>
+        </label>
+      </div>
+
+      <div class="field" id="microair-fields">
+        <label for="microair_email">Micro-Air Account Email</label>
+        <input type="text" id="microair_email" placeholder="email@example.com">
+
+        <label for="microair_password">Micro-Air Account Password</label>
+        <input type="password" id="microair_password">
+
+        <label for="ble_scan_interval">BLE Scan Interval</label>
+        <div class="input-with-unit">
+          <input type="number" id="ble_scan_interval" min="10" max="300" value="30">
+          <span class="unit">seconds</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Advanced -->
+    <section class="card">
+      <h2>Advanced</h2>
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="beta_enabled">
+          <span>Enable Beta Features</span>
+        </label>
+        <p class="help">Enables experimental features. Use at your own risk.</p>
+      </div>
+    </section>
+
+    <div class="actions">
+      <p class="help" style="color: #ff9800; margin-bottom: 10px;">Note: You must restart the LibreCoach add-on for changes to take effect.</p>
+      <button id="save-btn" class="btn-primary">Save Settings</button>
+      <span id="save-status" class="status-msg"></span>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+
+</html>
