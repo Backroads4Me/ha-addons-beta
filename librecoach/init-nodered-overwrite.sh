@@ -25,8 +25,9 @@ for i in $(seq 1 $MAX_RETRIES); do
     BODY=$(echo "$RESPONSE" | sed '$d')
 
     if [ "$HTTP_CODE" = "200" ]; then
-        # Check JSON for installed=true or result=ok
-        if echo "$BODY" | grep -q '"installed": true' || echo "$BODY" | grep -q '"result": "ok"'; then
+        # Check JSON for installed=true or state=started
+        BODY_NOSPACE=$(echo "$BODY" | tr -d ' ' | tr -d '\n' | tr -d '\r')
+        if echo "$BODY_NOSPACE" | grep -q '"installed":true' || echo "$BODY_NOSPACE" | grep -q '"state":"started"'; then
             echo "LibreCoach ($OWNER_SLUG) is verified installed."
             break
         else
