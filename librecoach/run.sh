@@ -23,61 +23,13 @@ SLUG_NODERED="a0d7b954_nodered"
 STATE_FILE="/data/.librecoach-state.json"
 ADDON_VERSION=$(bashio::addon.version)
 
-# Config values used by orchestrator (bootstrap — from config.yaml)
+# Config values used by orchestrator (from config.yaml)
 MQTT_USER=$(bashio::config 'mqtt_user')
 MQTT_PASS=$(bashio::config 'mqtt_pass')
 DEBUG_LOGGING=$(bashio::config 'debug_logging')
-
-# Settings UI config file — migrated options live here
-SETTINGS_FILE="/data/librecoach-settings.json"
-
-# Migrate settings on first run after update (preserves user's existing values)
-if [ ! -f "$SETTINGS_FILE" ]; then
-    bashio::log.info "Migrating settings to $SETTINGS_FILE..."
-    if [ -f "/data/options.json" ]; then
-        jq -n \
-            --argjson victron "$(jq 'if has("victron_enabled") then .victron_enabled else true end' /data/options.json)" \
-            --argjson microair "$(jq 'if has("microair_enabled") then .microair_enabled else false end' /data/options.json)" \
-            --arg microair_email "$(jq -r '.microair_email // ""' /data/options.json)" \
-            --arg microair_password "$(jq -r '.microair_password // ""' /data/options.json)" \
-            --argjson ble_scan "$(jq -r '.ble_scan_interval // 30' /data/options.json)" \
-            --argjson beta "$(jq 'if has("beta_enabled") then .beta_enabled else false end' /data/options.json)" \
-            '{
-                geo_enabled: false,
-                geo_device_tracker_primary: "",
-                geo_device_tracker_secondary: "",
-                geo_update_threshold: 10,
-                victron_enabled: $victron,
-                microair_enabled: $microair,
-                microair_email: $microair_email,
-                microair_password: $microair_password,
-                ble_scan_interval: $ble_scan,
-                beta_enabled: $beta
-            }' > "$SETTINGS_FILE"
-        bashio::log.info "   Settings migrated successfully"
-    else
-        bashio::log.warning "   /data/options.json not found, using defaults"
-        jq -n '{
-            geo_enabled: false,
-            geo_device_tracker_primary: "",
-            geo_device_tracker_secondary: "",
-            geo_update_threshold: 10,
-            victron_enabled: true,
-            microair_enabled: false,
-            microair_email: "",
-            microair_password: "",
-            ble_scan_interval: 30,
-            beta_enabled: false
-        }' > "$SETTINGS_FILE"
-        bashio::log.info "   Default settings created successfully"
-    fi
-fi
-
-# Read settings from Settings UI config
-# Note: jq '//' treats false as falsy — use 'has()' to only default on missing keys
-VICTRON_ENABLED=$(jq -r 'if has("victron_enabled") then .victron_enabled else true end' "$SETTINGS_FILE")
-BETA_ENABLED=$(jq -r 'if has("beta_enabled") then .beta_enabled else false end' "$SETTINGS_FILE")
-MICROAIR_ENABLED=$(jq -r 'if has("microair_enabled") then .microair_enabled else false end' "$SETTINGS_FILE")
+VICTRON_ENABLED=$(bashio::config 'victron_enabled')
+BETA_ENABLED=$(bashio::config 'beta_enabled')
+MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
 
 # ======================== 
 # Orchestrator Helpers
@@ -389,7 +341,7 @@ get_managed_hash() {
 }
 
 # Ensure this addon starts on boot (upgrades from older versions may have boot: manual)
-api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true,"ingress_panel":true}' > /dev/null
+api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/null
 
 # ========================
 # Phase 0: Deployment
@@ -571,9 +523,9 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
     INTEGRATION_DST="/config/custom_components/librecoach_ble"
 
     # Write config file for the integration to read at runtime
-    MICROAIR_PASSWORD=$(jq -r '.microair_password // ""' "$SETTINGS_FILE")
-    MICROAIR_EMAIL=$(jq -r '.microair_email // ""' "$SETTINGS_FILE")
-    BLE_SCAN_INTERVAL=$(jq -r '.ble_scan_interval // 30' "$SETTINGS_FILE")
+    MICROAIR_PASSWORD=$(bashio::config 'microair_password')
+    MICROAIR_EMAIL=$(bashio::config 'microair_email')
+    BLE_SCAN_INTERVAL=$(bashio::config 'ble_scan_interval')
 
     jq -n \
         --argjson enabled true \
@@ -624,13 +576,8 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
         bashio::log.warning "   ⚠️  LibreCoach Bluetooth Integration state changed"
         bashio::log.warning "   ⚠️  Restarting Home Assistant Core to apply changes"
         bashio::log.warning "   ⚠️  It is normal to briefly lose connection to Home Assistant."
-        bashio::log.warning "   ⚠️  Please wait a minute and refresh your browser if necessary."
+        bashio::log.warning "   ⚠️  Please wait a few minutes and refresh your browser if necessary."
         
-        send_notification \
-          "System Restarting" \
-          "LibreCoach is restarting Home Assistant Core to apply changes to the Micro-Air BLE integration. It is normal to briefly lose connection. Please wait a minute and refresh your browser if necessary." \
-          "librecoach_ha_restart"
-
         api_call POST "/core/restart" >/dev/null 2>&1
 
         # Wait for HA to come back (10s initial delay + up to ~2 min polling)

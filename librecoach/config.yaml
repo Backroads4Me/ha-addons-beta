@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.73"
+version: "1.0.74"
 slug: "librecoach"
 description: "Smart home control for your RV"
 url: "https://librecoach.com"
@@ -18,12 +18,8 @@ homeassistant_api: true
 privileged:
   - NET_ADMIN
   - NET_RAW
-ingress: true
-ingress_port: 8099
-ingress_panel: true
-panel_icon: "mdi:rv-truck"
-panel_title: "LibreCoach"
 host_network: true
+host_dbus: true
 devices:
   - /dev/bus/usb
 uart: true
@@ -31,6 +27,16 @@ map:
   - share:rw
   - config:rw
 options:
+  geo_enabled: false
+  geo_device_tracker_primary: ""
+  geo_device_tracker_secondary: ""
+  geo_update_threshold: 10
+  microair_enabled: false
+  microair_email: ""
+  microair_password: ""
+  ble_scan_interval: 30
+  victron_enabled: true
+  beta_enabled: false
   confirm_nodered_takeover: false
   prevent_flow_updates: false
   debug_logging: false
@@ -40,6 +46,16 @@ options:
   mqtt_pass: "One23four"
   can_interface: "can0"
 schema:
+  geo_enabled: bool
+  geo_device_tracker_primary: str?
+  geo_device_tracker_secondary: str?
+  geo_update_threshold: "int(1,500)?"
+  microair_enabled: bool
+  microair_email: str?
+  microair_password: password?
+  ble_scan_interval: "int(10,300)?"
+  victron_enabled: bool
+  beta_enabled: bool
   confirm_nodered_takeover: bool
   prevent_flow_updates: bool
   debug_logging: bool
