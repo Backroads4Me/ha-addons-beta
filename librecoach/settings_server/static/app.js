@@ -114,22 +114,25 @@ function setupEntityPicker(inputId, dropdownId) {
   input.addEventListener('blur', () => toggleDropdown(false));
 
   if (arrow) {
-    arrow.addEventListener('click', (e) => {
+    arrow.addEventListener('mousedown', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       if (dropdown.classList.contains('open')) {
         dropdown.classList.remove('open');
+        input.blur();
       } else {
         input.focus();
-        toggleDropdown(true);
       }
     });
   }
 
   dropdown.addEventListener('mousedown', (e) => {
+    e.preventDefault();
     const li = e.target.closest('li');
     if (li && li.dataset.entityId) {
       input.value = li.dataset.entityId;
       dropdown.classList.remove('open');
+      input.blur();
     }
   });
 }
