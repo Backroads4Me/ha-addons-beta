@@ -111,6 +111,22 @@ def _fetch_entities(domain=None):
     return entities
 
 
+def _restart_addon():
+    """Restart this add-on via Supervisor API."""
+    token = os.environ.get("SUPERVISOR_TOKEN", "")
+    if not token:
+        log.error("SUPERVISOR_TOKEN not found, cannot restart add-on")
+        return
+    url = "http://supervisor/addons/self/restart"
+    req = urllib.request.Request(url, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        urllib.request.urlopen(req, timeout=5)
+        log.info("Add-on restart requested.")
+    except Exception as exc:
+        log.error("Failed to restart add-on: %s", exc)
+
+
 class SettingsHandler(SimpleHTTPRequestHandler):
     """Handle API requests and serve static files."""
 
@@ -178,6 +194,10 @@ class SettingsHandler(SimpleHTTPRequestHandler):
             saved = _write_settings(data)
             log.info("Settings updated")
             self._send_json({"ok": True, "settings": saved})
+            
+            # Restart the add-on shortly after responding to the UI
+            from threading import Timer
+            Timer(1.0, _restart_addon).start()
             return
 
         self.send_error(404)

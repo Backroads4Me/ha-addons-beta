@@ -194,7 +194,7 @@ async function init() {
       const settings = collectForm();
       document.getElementById('save-btn').textContent = 'Saving...';
       await saveSettings(settings);
-      showStatus('Settings saved — restart add-on to apply changes', 'success');
+      showStatus('Settings saved. Add-on is restarting...', 'success');
     } catch (e) {
       showStatus('Failed to save: ' + e.message, 'error');
     } finally {

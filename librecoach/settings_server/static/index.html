@@ -15,20 +15,21 @@
       <div id="version"></div>
     </header>
 
-    <!-- Geo Location -->
+    <!-- Integrations Section -->
     <section class="card">
-      <h2>Geo Location</h2>
-      <p class="help">Automatically updates Home Assistant's home location, timezone, and elevation when the RV moves.
-      </p>
+      <h2>LibreCoach Integration Options</h2>
 
+      <!-- GPS Updates -->
       <div class="field">
         <label class="toggle-label">
           <input type="checkbox" id="geo_enabled">
-          <span>Enable Geo Location Tracking</span>
+          <span>Enable Automated GPS Location Updates</span>
         </label>
+        <p class="help">Automatically updates Home Assistant's home location, timezone, and elevation when the RV moves.
+        </p>
       </div>
 
-      <div class="field" id="geo-fields">
+      <div class="field hidden" id="geo-fields">
         <label for="geo_device_tracker_primary">Primary GPS Tracker</label>
         <div class="entity-picker">
           <input type="text" id="geo_device_tracker_primary" placeholder="device_tracker.phone" autocomplete="off">
@@ -49,12 +50,24 @@
           <span class="unit">miles</span>
         </div>
       </div>
-    </section>
 
-    <!-- Integrations -->
-    <section class="card">
-      <h2>Integrations</h2>
+      <!-- Micro-Air Integration -->
+      <div class="field">
+        <label class="toggle-label">
+          <input type="checkbox" id="microair_enabled">
+          <span>Enable Micro-Air EasyTouch Thermostat Integration</span>
+        </label>
+      </div>
 
+      <div class="field hidden" id="microair-fields">
+        <label for="microair_email">Micro-Air Account Email</label>
+        <input type="text" id="microair_email" placeholder="email@example.com">
+
+        <label for="microair_password">Micro-Air Account Password</label>
+        <input type="password" id="microair_password">
+      </div>
+
+      <!-- Victron Integration -->
       <div class="field">
         <label class="toggle-label">
           <input type="checkbox" id="victron_enabled">
@@ -63,29 +76,7 @@
         <p class="help">Requires a GX device with MQTT enabled.</p>
       </div>
 
-      <div class="field">
-        <label class="toggle-label">
-          <input type="checkbox" id="microair_enabled">
-          <span>Enable Micro-Air EasyTouch Thermostat</span>
-        </label>
-      </div>
-
-      <div class="field" id="microair-fields">
-        <label for="microair_email">Micro-Air Account Email</label>
-        <input type="text" id="microair_email" placeholder="email@example.com">
-
-        <label for="microair_password">Micro-Air Account Password</label>
-        <input type="password" id="microair_password">
-
-
-      </div>
-    </section>
-
-    <!-- Maintenance -->
-    <section class="card">
-      <h2>Maintenance</h2>
-      <p class="help">If you plan to uninstall LibreCoach, please disable the Bluetooth integration first to ensure all
-        custom component files are removed from your system.</p>
+      <!-- Beta Features -->
       <div class="field">
         <label class="toggle-label">
           <input type="checkbox" id="beta_enabled">
@@ -96,8 +87,8 @@
     </section>
 
     <div class="actions">
-      <p class="help" style="color: #ff9800; margin-bottom: 10px;">Note: You must restart the LibreCoach add-on for
-        changes to take effect.</p>
+      <p class="help" style="color: #ff9800; margin-bottom: 10px;">Note: The LibreCoach add-on will automatically
+        restart when you save these settings.</p>
       <button id="save-btn" class="btn-primary">Save Settings</button>
       <span id="save-status" class="status-msg"></span>
     </div>
