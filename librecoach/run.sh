@@ -400,7 +400,7 @@ else
 fi
 
 # Inject the addon slug for the suicide check
-OWNER_SLUG=$(bashio::addon.slug)
+OWNER_SLUG=$(api_call GET "/addons/self/info" | jq -r '.data.slug // empty')
 sed -i "s/REPLACE_ME/$OWNER_SLUG/g" "$PROJECT_PATH/init-nodered.sh"
 
 # Ensure permissions are open (Node-RED runs as non-root)
@@ -550,7 +550,7 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
         --arg password "$MICROAIR_PASSWORD" \
         --arg email "$MICROAIR_EMAIL" \
         --argjson scan_interval "${BLE_SCAN_INTERVAL:-30}" \
-        --arg slug "$BASHIO_ADDON_SLUG" \
+        --arg slug "$OWNER_SLUG" \
         '{
             microair_enabled: $enabled,
             microair_password: $password,
