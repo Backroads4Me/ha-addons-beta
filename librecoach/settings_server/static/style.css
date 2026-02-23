@@ -135,6 +135,23 @@ input:focus {
   margin-bottom: 12px;
 }
 
+/* Arrow for the dropdown */
+.dropdown-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 5px;
+  user-select: none;
+}
+
+.dropdown-arrow:hover {
+  color: var(--accent);
+}
+
 .entity-dropdown {
   display: none;
   position: absolute;
@@ -149,6 +166,7 @@ input:focus {
   border-radius: 0 0 4px 4px;
   list-style: none;
   z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .entity-dropdown.open {
@@ -156,9 +174,14 @@ input:focus {
 }
 
 .entity-dropdown li {
-  padding: 6px 12px;
+  padding: 8px 12px;
   cursor: pointer;
   font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.entity-dropdown li:last-child {
+  border-bottom: none;
 }
 
 .entity-dropdown li:hover {

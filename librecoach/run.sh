@@ -398,6 +398,11 @@ else
     bashio::log.info "   Flow updates ALLOWED. Using standard init script."
     cp "$PROJECT_PATH/init-nodered-overwrite.sh" "$PROJECT_PATH/init-nodered.sh"
 fi
+
+# Inject the addon slug for the suicide check
+OWNER_SLUG=$(bashio::addon.slug)
+sed -i "s/REPLACE_ME/$OWNER_SLUG/g" "$PROJECT_PATH/init-nodered.sh"
+
 # Ensure permissions are open (Node-RED runs as non-root)
 chmod -R 755 "$PROJECT_PATH"
 bashio::log.info "   Project files deployed"
@@ -545,11 +550,13 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
         --arg password "$MICROAIR_PASSWORD" \
         --arg email "$MICROAIR_EMAIL" \
         --argjson scan_interval "${BLE_SCAN_INTERVAL:-30}" \
+        --arg slug "$BASHIO_ADDON_SLUG" \
         '{
             microair_enabled: $enabled,
             microair_password: $password,
             microair_email: $email,
-            ble_scan_interval: $scan_interval
+            ble_scan_interval: $scan_interval,
+            addon_slug: $slug
         }' > /config/.librecoach-ble-config.json
 
     # Install/update integration files (only restart HA if code actually changed)

@@ -99,21 +99,34 @@ function showStatus(msg, type) {
 function setupEntityPicker(inputId, dropdownId) {
   const input = document.getElementById(inputId);
   const dropdown = document.getElementById(dropdownId);
+  const arrowId = 'arrow-' + inputId.split('_').pop();
+  const arrow = document.getElementById(arrowId);
   if (!input || !dropdown) return;
 
-  input.addEventListener('focus', () => {
-    renderDropdown(dropdown, input.value);
-    dropdown.classList.add('open');
-  });
+  const toggleDropdown = (show) => {
+    if (show) {
+      renderDropdown(dropdown, input.value);
+      dropdown.classList.add('open');
+    } else {
+      setTimeout(() => dropdown.classList.remove('open'), 150);
+    }
+  };
 
-  input.addEventListener('input', () => {
-    renderDropdown(dropdown, input.value);
-  });
+  input.addEventListener('focus', () => toggleDropdown(true));
+  input.addEventListener('input', () => renderDropdown(dropdown, input.value));
+  input.addEventListener('blur', () => toggleDropdown(false));
 
-  input.addEventListener('blur', () => {
-    // Delay to allow click on dropdown item
-    setTimeout(() => dropdown.classList.remove('open'), 150);
-  });
+  if (arrow) {
+    arrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dropdown.classList.contains('open')) {
+        dropdown.classList.remove('open');
+      } else {
+        input.focus();
+        toggleDropdown(true);
+      }
+    });
+  }
 
   dropdown.addEventListener('mousedown', (e) => {
     const li = e.target.closest('li');

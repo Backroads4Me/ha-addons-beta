@@ -5,15 +5,22 @@
 - Geo Bridge: automatically syncs Home Assistant location, timezone, and elevation from a GPS device tracker
 - Settings UI: new sidebar panel (LibreCoach icon) for configuring integrations and geo tracking with entity pickers
 - Settings migration: existing config values are automatically carried over on first startup after update
+- Autonomous Cleanup: implemented "Double-Lock" suicide pattern for high-assurance Bluetooth and Node-RED management
 
 ### Changed
 
 - Victron, Micro-Air, BLE, and beta settings moved from Configuration tab to Settings UI
+- Improved "Show in Sidebar" and "Watchdog" to be enabled by default on installation
 - CAN bridge constants (bitrate, MQTT topics) are no longer user-configurable
+
+### Fixed
+
+- Fixed Bluetooth integration logo corruption in Dockerfile
+- Fixed GPS entity selection UI with new dropdown selector and improved click logic
 
 ## [1.1.5] - 2026-02-19
 
-**⚠️ Action Required:** The CAN-to-MQTT Bridge add-on is no onger required, it will be automatically disabled. You can safely uninstall it from **Settings → Apps**.
+**⚠️ Action Required:** The CAN-to-MQTT Bridge add-on is no longer required, it will be automatically disabled. You can safely uninstall it from **Settings → Apps**.
 
 ### Added
 

@@ -90,3 +90,17 @@ If you wish to stop LibreCoach from managing Node-RED:
     `bash /share/.librecoach/init-nodered.sh` &#x2716;
 
 4.  Click the &#x2716; to delete the entry and then click save.
+
+### Uninstalling the Bluetooth Integration
+
+Because Home Assistant add-ons cannot automatically remove files from your `/config` directory during uninstallation, you should clean up the Bluetooth integration **before** uninstalling the add-on:
+
+1.  Open the **LibreCoach** sidebar settings.
+2.  Toggle **Enable Micro-Air EasyTouch Thermostat** to **OFF**.
+3.  Click **Save Settings**.
+4.  **Restart** the LibreCoach add-on.
+5.  Wait for the add-on logs to confirm: `Removing librecoach_ble integration...`.
+6.  (Optional) Restart Home Assistant to fully remove the integration from memory.
+7.  Now you can safely uninstall the **LibreCoach** add-on.
+
+If you have already uninstalled the add-on, you must manually delete the `/config/custom_components/librecoach_ble` folder and remove the `librecoach_ble:` line from your `configuration.yaml`.

@@ -73,6 +73,7 @@ RUN chmod +x /etc/cont-init.d/*.sh 2>/dev/null || true
 COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh
 
 # Strip Windows CRLF line endings from all scripts and s6 config files
+# EXCLUDE binary files (.png) to prevent destruction of integration logos
 RUN find /etc/s6-overlay /etc/cont-init.d /opt/vehicle_bridge /opt/settings_server \
     /opt/librecoach-project /opt/librecoach_ble \
-    -type f -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+    -type f ! -name "*.png" -exec sed -i 's/\r$//' {} + 2>/dev/null || true

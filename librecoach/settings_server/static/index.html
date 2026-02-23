@@ -32,12 +32,14 @@
         <label for="geo_device_tracker_primary">Primary GPS Tracker</label>
         <div class="entity-picker">
           <input type="text" id="geo_device_tracker_primary" placeholder="device_tracker.phone" autocomplete="off">
+          <div class="dropdown-arrow" id="arrow-primary">▼</div>
           <ul class="entity-dropdown" id="dropdown-primary"></ul>
         </div>
 
         <label for="geo_device_tracker_secondary">Secondary GPS Tracker (Fallback)</label>
         <div class="entity-picker">
           <input type="text" id="geo_device_tracker_secondary" placeholder="Optional" autocomplete="off">
+          <div class="dropdown-arrow" id="arrow-secondary">▼</div>
           <ul class="entity-dropdown" id="dropdown-secondary"></ul>
         </div>
 
@@ -83,9 +85,11 @@
       </div>
     </section>
 
-    <!-- Advanced -->
+    <!-- Maintenance -->
     <section class="card">
-      <h2>Advanced</h2>
+      <h2>Maintenance</h2>
+      <p class="help">If you plan to uninstall LibreCoach, please disable the Bluetooth integration first to ensure all
+        custom component files are removed from your system.</p>
       <div class="field">
         <label class="toggle-label">
           <input type="checkbox" id="beta_enabled">
@@ -96,7 +100,8 @@
     </section>
 
     <div class="actions">
-      <p class="help" style="color: #ff9800; margin-bottom: 10px;">Note: You must restart the LibreCoach add-on for changes to take effect.</p>
+      <p class="help" style="color: #ff9800; margin-bottom: 10px;">Note: You must restart the LibreCoach add-on for
+        changes to take effect.</p>
       <button id="save-btn" class="btn-primary">Save Settings</button>
       <span id="save-status" class="status-msg"></span>
     </div>
