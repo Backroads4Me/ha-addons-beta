@@ -77,7 +77,7 @@ class CanBridge:
             filtered = ", ".join(
                 f"1{pf:02X}{ps:02X}" for pf, ps in self._filtered_pgns
             )
-            log.info("CAN DGN filter active — dropping: %s", filtered)
+
 
         self._read_task = asyncio.create_task(self._read_loop())
         self._write_task = asyncio.create_task(self._write_loop())

@@ -3,7 +3,7 @@
 const SETTINGS_FIELDS = [
   'geo_enabled', 'geo_device_tracker_primary', 'geo_device_tracker_secondary',
   'geo_update_threshold', 'victron_enabled', 'microair_enabled',
-  'microair_email', 'microair_password', 'ble_scan_interval', 'beta_enabled'
+  'microair_email', 'microair_password', 'beta_enabled'
 ];
 
 const TOGGLE_FIELDS = [
@@ -62,9 +62,6 @@ function collectForm() {
       settings[key] = el.checked;
     } else if (el.type === 'number') {
       let val = parseInt(el.value, 10) || 0;
-      if (key === 'ble_scan_interval') {
-        val = Math.max(10, Math.min(300, val));
-      }
       settings[key] = val;
     } else {
       settings[key] = el.value;
