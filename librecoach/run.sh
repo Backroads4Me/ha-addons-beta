@@ -36,12 +36,12 @@ if [ ! -f "$SETTINGS_FILE" ]; then
     bashio::log.info "Migrating settings to $SETTINGS_FILE..."
     if [ -f "/data/options.json" ]; then
         jq -n \
-            --argjson victron "$(jq -r '.victron_enabled // true' /data/options.json)" \
-            --argjson microair "$(jq -r '.microair_enabled // false' /data/options.json)" \
+            --argjson victron "$(jq 'if has("victron_enabled") then .victron_enabled else true end' /data/options.json)" \
+            --argjson microair "$(jq 'if has("microair_enabled") then .microair_enabled else false end' /data/options.json)" \
             --arg microair_email "$(jq -r '.microair_email // ""' /data/options.json)" \
             --arg microair_password "$(jq -r '.microair_password // ""' /data/options.json)" \
             --argjson ble_scan "$(jq -r '.ble_scan_interval // 30' /data/options.json)" \
-            --argjson beta "$(jq -r '.beta_enabled // false' /data/options.json)" \
+            --argjson beta "$(jq 'if has("beta_enabled") then .beta_enabled else false end' /data/options.json)" \
             '{
                 geo_enabled: false,
                 geo_device_tracker_primary: "",
@@ -74,9 +74,10 @@ if [ ! -f "$SETTINGS_FILE" ]; then
 fi
 
 # Read settings from Settings UI config
-VICTRON_ENABLED=$(jq -r '.victron_enabled // true' "$SETTINGS_FILE")
-BETA_ENABLED=$(jq -r '.beta_enabled // false' "$SETTINGS_FILE")
-MICROAIR_ENABLED=$(jq -r '.microair_enabled // false' "$SETTINGS_FILE")
+# Note: jq '//' treats false as falsy — use 'has()' to only default on missing keys
+VICTRON_ENABLED=$(jq -r 'if has("victron_enabled") then .victron_enabled else true end' "$SETTINGS_FILE")
+BETA_ENABLED=$(jq -r 'if has("beta_enabled") then .beta_enabled else false end' "$SETTINGS_FILE")
+MICROAIR_ENABLED=$(jq -r 'if has("microair_enabled") then .microair_enabled else false end' "$SETTINGS_FILE")
 
 # ======================== 
 # Orchestrator Helpers
@@ -96,9 +97,9 @@ api_call() {
   log_debug "API Call: $method $endpoint"
   if [ -n "$data" ]; then
     log_debug "API Data: $data"
-    local response=$(curl -s -X "$method" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$data" "$SUPERVISOR$endpoint")
+    local response=$(curl -s --connect-timeout 5 -m 30 -X "$method" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$data" "$SUPERVISOR$endpoint")
   else
-    local response=$(curl -s -X "$method" -H "$AUTH_HEADER" "$SUPERVISOR$endpoint")
+    local response=$(curl -s --connect-timeout 5 -m 30 -X "$method" -H "$AUTH_HEADER" "$SUPERVISOR$endpoint")
   fi
 
   echo "$response"
@@ -465,12 +466,21 @@ if [ -z "$NEW_MOSQUITTO_OPTIONS" ] || [ "$NEW_MOSQUITTO_OPTIONS" == "null" ]; th
     exit 1
 fi
 
-api_call POST "/addons/$SLUG_MOSQUITTO/options" "{\"options\": $NEW_MOSQUITTO_OPTIONS}" > /dev/null
-bashio::log.info "   Configured Mosquitto user: $MQTT_USER"
-
-# Restart Mosquitto to apply config and trigger MQTT integration discovery
-if is_running "$SLUG_MOSQUITTO"; then
-  restart_addon "$SLUG_MOSQUITTO" || exit 1
+# Only update config and restart if the librecoach user/password changed
+if [ "$NEW_MOSQUITTO_OPTIONS" != "$MOSQUITTO_OPTIONS" ]; then
+  api_call POST "/addons/$SLUG_MOSQUITTO/options" "{\"options\": $NEW_MOSQUITTO_OPTIONS}" > /dev/null
+  bashio::log.info "   Configured Mosquitto user: $MQTT_USER"
+  if is_running "$SLUG_MOSQUITTO"; then
+    restart_addon "$SLUG_MOSQUITTO" || exit 1
+  fi
+else
+  bashio::log.info "   Mosquitto user already configured"
+  # Ensure Mosquitto is running (may not be after a reboot)
+  if ! is_running "$SLUG_MOSQUITTO"; then
+    start_addon "$SLUG_MOSQUITTO" || exit 1
+  else
+    bashio::log.info "   $SLUG_MOSQUITTO is running"
+  fi
 fi
 
 # Verify MQTT is responding with configured credentials
@@ -623,15 +633,16 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
 
         api_call POST "/core/restart" >/dev/null 2>&1
 
-        # Wait for HA to come back (up to 3 minutes)
+        # Wait for HA to come back (10s initial delay + up to ~2 min polling)
         bashio::log.info "   Waiting for Home Assistant to restart"
-        retries=90
+        sleep 10
+        retries=30
         while [ $retries -gt 0 ]; do
-            if api_call GET "/core/api/" 2>/dev/null | grep -q "API running"; then
+            if curl -s --connect-timeout 3 -m 5 -H "$AUTH_HEADER" "$SUPERVISOR/core/api/" 2>/dev/null | grep -q "API running"; then
                 bashio::log.info "   Home Assistant is back online"
                 break
             fi
-            sleep 2
+            sleep 3
             ((retries--))
         done
 

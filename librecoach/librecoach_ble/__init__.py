@@ -1,9 +1,12 @@
 import asyncio
 import json
 import logging
+import os
 from pathlib import Path
 
+import aiohttp
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, CONFIG_PATH
@@ -13,6 +16,8 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up LibreCoach BLE from configuration.yaml."""
+    _LOGGER.info("LibreCoach BLE integration loading")
+
     # Read config written by the add-on
     try:
         def _read_config():
@@ -20,17 +25,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             if not path.exists():
                 return None
             return path.read_text(encoding="utf-8")
-            
+
         conf_text = await hass.async_add_executor_job(_read_config)
-        
+
         if conf_text is None:
-             _LOGGER.debug("LibreCoach BLE config marker not found. Cleanup might have run or add-on not yet started.")
+             _LOGGER.warning("Config file not found at %s — add-on may not have started yet", CONFIG_PATH)
              return True
-             
+
         conf = json.loads(conf_text)
     except (FileNotFoundError, json.JSONDecodeError) as exc:
-        _LOGGER.debug("LibreCoach BLE config error: %s", exc)
+        _LOGGER.warning("Config file error: %s", exc)
         return True
+
+    _LOGGER.info("Config loaded: microair_enabled=%s, addon_slug=%s",
+                 conf.get("microair_enabled"), conf.get("addon_slug"))
 
     # Start monitoring task for suicide check (delayed)
     addon_slug = conf.get("addon_slug")
@@ -38,14 +46,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.async_create_task(_monitor_addon_status(hass, addon_slug))
 
     if not conf.get("microair_enabled"):
-        _LOGGER.info("LibreCoach BLE: MicroAir disabled in add-on config")
+        _LOGGER.info("MicroAir disabled in add-on config")
         # Clear locked device address so it rediscovers on re-enable
         if conf.get("locked_devices"):
             conf.pop("locked_devices", None)
-            
+
             def _write_cleared():
                 Path(CONFIG_PATH).write_text(json.dumps(conf))
-                
+
             try:
                 await hass.async_add_executor_job(_write_cleared)
                 _LOGGER.info("Cleared locked device addresses")
@@ -58,17 +66,33 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     # Start after HA is fully running (Bluetooth + MQTT ready)
     async def _start_bridge(event=None):
+        _LOGGER.info("Starting BLE bridge (homeassistant_started fired)")
         await manager.start()
-        _LOGGER.info("LibreCoach BLE bridge started")
+        _LOGGER.info("BLE bridge started — listening for MicroAir advertisements")
 
     hass.bus.async_listen_once("homeassistant_started", _start_bridge)
+    _LOGGER.info("BLE bridge will start when Home Assistant is fully loaded")
 
     return True
 
 async def _monitor_addon_status(hass: HomeAssistant, slug: str):
-    """Monitor add-on status and perform cleanup if uninstalled."""
+    """Monitor add-on status and perform cleanup if uninstalled.
+
+    Uses the Supervisor REST API directly to avoid dependency on internal
+    HA Python APIs (is_hassio, hass.components.hassio) that change between releases.
+    """
     # Wait for HA to fully start and Add-ons to initialize
     await asyncio.sleep(120)
+
+    token = os.environ.get("SUPERVISOR_TOKEN")
+    if not token:
+        _LOGGER.warning("No SUPERVISOR_TOKEN — not running on HA OS. Cannot verify add-on status.")
+        return
+
+    supervisor = os.environ.get("SUPERVISOR", "http://supervisor")
+    headers = {"Authorization": f"Bearer {token}"}
+    session = async_get_clientsession(hass)
+    timeout = aiohttp.ClientTimeout(total=10)
 
     max_retries = 3
     retry_delay = 30
@@ -76,50 +100,34 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
 
     for attempt in range(max_retries):
         try:
-            from homeassistant.components.hassio import is_hassio
-            if not is_hassio(hass):
-                _LOGGER.warning("System is not running Supervisor/Hass.io. Cannot verify add-on status.")
-                return
-
-            hassio = hass.components.hassio
-
             # Source 1: Check individual add-on info
-            try:
-                addon_info = await hassio.async_get_addon_info(slug)
-            except Exception as e:
-                # homeassistant.components.hassio.handler.AddonError is raised if not installed
-                if "AddonError" in type(e).__name__:
-                    addon_info = None
-                else:
-                    raise
+            is_in_info = False
+            async with session.get(
+                f"{supervisor}/addons/{slug}/info",
+                headers=headers, timeout=timeout
+            ) as resp:
+                if resp.status == 200:
+                    is_in_info = True
 
-            # Source 2: Check the full add-on list
-            try:
-                # Some HA versions/setups might not exposing this list directly
-                addons_list = await hassio.async_get_addons_list()
-                installed_slugs = [a.get("slug") for a in addons_list.get("addons", [])] if addons_list else []
-            except Exception as e:
-                _LOGGER.debug("Could not fetch full addons list: %s", e)
-                installed_slugs = []
-
-            # Double-Lock Condition:
-            # 1. Info must be missing (None or handled by hassio API errors)
-            # 2. Slug must be missing from the full list (if list was available)
-            is_in_info = addon_info is not None
-            is_in_list = slug in installed_slugs
+            # Source 2: Check the full installed add-ons list
+            is_in_list = False
+            async with session.get(
+                f"{supervisor}/addons",
+                headers=headers, timeout=timeout
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    addons = data.get("data", {}).get("addons", [])
+                    is_in_list = any(a.get("slug") == slug for a in addons)
 
             if is_in_info or is_in_list:
-                _LOGGER.debug("LibreCoach add-on (%s) verified present (Info: %s, List: %s). Monitoring finished.", slug, is_in_info, is_in_list)
+                _LOGGER.debug("LibreCoach add-on (%s) verified present.", slug)
                 return
 
             _LOGGER.warning("LibreCoach add-on (%s) not found in Double-Lock check (Attempt %d/%d).", slug, attempt + 1, max_retries)
             confirmed_missing += 1
-        except KeyError:
-            _LOGGER.warning("Hassio component not loaded in Home Assistant. Cannot verify add-on status.")
-            return
         except Exception as exc:
-            _LOGGER.debug("Double-Lock check encountered an error (Attempt %d/%d): %s", attempt + 1, max_retries, str(exc))
-            _LOGGER.exception(exc)
+            _LOGGER.debug("Double-Lock check error (Attempt %d/%d): %s", attempt + 1, max_retries, exc)
 
         if attempt < max_retries - 1:
             await asyncio.sleep(retry_delay)
