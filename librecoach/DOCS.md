@@ -22,7 +22,7 @@ These settings are found under **Settings → Apps → LibreCoach → Configurat
 | Option                       | Description                                                                                                                                        |
 | :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Allow Node-RED Overwrite** | Only used during first install. Must be enabled to allow LibreCoach to replace existing Node-RED flows. **This will delete your current flows.**   |
-| **Prevent Flow Updates**     | Preserves your customized Node-RED flows during add-on updates. System software and reference files still update normally.                         |
+| **Preserve Node-RED Flow Customizations** | Preserves your customized Node-RED flows during add-on updates. System software and reference files still update normally.                         |
 | **Enable Debug Logging**     | Enables verbose logging for troubleshooting. Leave off during normal use.                                                                          |
 | **CAN Interface**            | The host network interface name for your CAN hardware.                                                                                             |
 | **MQTT User / Password**     | Credentials used by the Vehicle Bridge and Node-RED to connect to Mosquitto. Defaults are set automatically — most users should leave these as-is. |

@@ -28,24 +28,9 @@ class BleBridgeManager:
         self._active_devices = {}   # address -> device entry dict
         self._cancel_callbacks = []
         self._stopping = False
-        self._locked_devices = self._load_locked_devices()  # device_type -> address
+        self._locked_devices = self.config.get("locked_devices", {})  # device_type -> address
 
-    def _load_locked_devices(self) -> dict:
-        """Load previously locked device addresses from config file."""
-        try:
-            import os
-            if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    locked = data.get("locked_devices", {})
-                    if locked:
-                        _LOGGER.info("Loaded locked devices: %s", locked)
-                    return locked
-        except Exception as exc:
-            _LOGGER.warning("Failed to load locked devices: %s", exc)
-        return {}
-
-    def _save_locked_device(self, device_type: str, address: str):
+    def _save_locked_device_sync(self, device_type: str, address: str):
         """Save a locked device address to config file."""
         self._locked_devices[device_type] = address
         try:
@@ -248,7 +233,7 @@ class BleBridgeManager:
                 # Lock this address on first successful poll
                 device_type = handler.device_type()
                 if device_type not in self._locked_devices:
-                    self._save_locked_device(device_type, address)
+                    await self.hass.async_add_executor_job(self._save_locked_device_sync, device_type, address)
 
                 # Mark online
                 failure_count = 0

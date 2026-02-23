@@ -15,10 +15,19 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up LibreCoach BLE from configuration.yaml."""
     # Read config written by the add-on
     try:
-        if not Path(CONFIG_PATH).exists():
+        def _read_config():
+            path = Path(CONFIG_PATH)
+            if not path.exists():
+                return None
+            return path.read_text(encoding="utf-8")
+            
+        conf_text = await hass.async_add_executor_job(_read_config)
+        
+        if conf_text is None:
              _LOGGER.debug("LibreCoach BLE config marker not found. Cleanup might have run or add-on not yet started.")
              return True
-        conf = json.loads(Path(CONFIG_PATH).read_text())
+             
+        conf = json.loads(conf_text)
     except (FileNotFoundError, json.JSONDecodeError) as exc:
         _LOGGER.debug("LibreCoach BLE config error: %s", exc)
         return True
@@ -33,8 +42,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         # Clear locked device address so it rediscovers on re-enable
         if conf.get("locked_devices"):
             conf.pop("locked_devices", None)
-            try:
+            
+            def _write_cleared():
                 Path(CONFIG_PATH).write_text(json.dumps(conf))
+                
+            try:
+                await hass.async_add_executor_job(_write_cleared)
                 _LOGGER.info("Cleared locked device addresses")
             except Exception as exc:
                 _LOGGER.debug("Failed to clear locked devices: %s", exc)
@@ -63,18 +76,35 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
 
     for attempt in range(max_retries):
         try:
+            from homeassistant.components.hassio import is_hassio
+            if not is_hassio(hass):
+                _LOGGER.warning("System is not running Supervisor/Hass.io. Cannot verify add-on status.")
+                return
+
             hassio = hass.components.hassio
 
             # Source 1: Check individual add-on info
-            addon_info = await hassio.async_get_addon_info(slug)
+            try:
+                addon_info = await hassio.async_get_addon_info(slug)
+            except Exception as e:
+                # homeassistant.components.hassio.handler.AddonError is raised if not installed
+                if "AddonError" in type(e).__name__:
+                    addon_info = None
+                else:
+                    raise
 
             # Source 2: Check the full add-on list
-            addons_list = await hassio.async_get_addons_list()
-            installed_slugs = [a.get("slug") for a in addons_list.get("addons", [])] if addons_list else []
+            try:
+                # Some HA versions/setups might not exposing this list directly
+                addons_list = await hassio.async_get_addons_list()
+                installed_slugs = [a.get("slug") for a in addons_list.get("addons", [])] if addons_list else []
+            except Exception as e:
+                _LOGGER.debug("Could not fetch full addons list: %s", e)
+                installed_slugs = []
 
             # Double-Lock Condition:
-            # 1. Info must be missing (None or 404 handled by hassio)
-            # 2. Slug must be missing from the full list
+            # 1. Info must be missing (None or handled by hassio API errors)
+            # 2. Slug must be missing from the full list (if list was available)
             is_in_info = addon_info is not None
             is_in_list = slug in installed_slugs
 
@@ -84,8 +114,12 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
 
             _LOGGER.warning("LibreCoach add-on (%s) not found in Double-Lock check (Attempt %d/%d).", slug, attempt + 1, max_retries)
             confirmed_missing += 1
+        except KeyError:
+            _LOGGER.warning("Hassio component not loaded in Home Assistant. Cannot verify add-on status.")
+            return
         except Exception as exc:
-            _LOGGER.debug("Double-Lock check encountered an error (Attempt %d/%d): %s", attempt + 1, max_retries, exc)
+            _LOGGER.debug("Double-Lock check encountered an error (Attempt %d/%d): %s", attempt + 1, max_retries, str(exc))
+            _LOGGER.exception(exc)
 
         if attempt < max_retries - 1:
             await asyncio.sleep(retry_delay)
@@ -119,24 +153,26 @@ async def _perform_self_cleanup(hass: HomeAssistant, slug: str):
         }
     )
 
-    # 2. Cleanup configuration.yaml
+    # 2. Cleanup configuration.yaml and marker file
     config_yaml = hass.config.path("configuration.yaml")
-    try:
-        content = Path(config_yaml).read_text(encoding="utf-8")
-        lines = content.splitlines()
-        new_lines = [l for l in lines if not l.strip().startswith("librecoach_ble:")]
-        if len(lines) != len(new_lines):
-            Path(config_yaml).write_text("\n".join(new_lines), encoding="utf-8")
-            _LOGGER.info("Removed 'librecoach_ble:' from configuration.yaml")
-    except Exception as exc:
-        _LOGGER.error("Failed to clean up configuration.yaml: %s", exc)
-
-    # 3. Remove config marker file
-    try:
-        Path(CONFIG_PATH).unlink(missing_ok=True)
-        _LOGGER.debug("Removed config marker file")
-    except Exception:
-        pass
+    
+    def _do_file_cleanup():
+        try:
+            content = Path(config_yaml).read_text(encoding="utf-8")
+            lines = content.splitlines()
+            new_lines = [l for l in lines if not l.strip().startswith("librecoach_ble:")]
+            if len(lines) != len(new_lines):
+                Path(config_yaml).write_text("\n".join(new_lines), encoding="utf-8")
+            Path(CONFIG_PATH).unlink(missing_ok=True)
+            return True
+        except Exception as exc:
+            return exc
+            
+    result = await hass.async_add_executor_job(_do_file_cleanup)
+    if result is True:
+        _LOGGER.info("Removed 'librecoach_ble:' from configuration.yaml and deleted marker file")
+    else:
+        _LOGGER.error("Failed to clean up files: %s", result)
 
     # Note: As per HA standards and best practices, we avoid deleting 
     # the custom_component files themselves during runtime.
