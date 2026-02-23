@@ -347,46 +347,45 @@ is_nodered_managed() {
   [ "$managed" = "true" ]
 }
 
- mark_nodered_managed() {
--  mkdir -p /data
-+  local current_hash=$1
-+  [ -z "$current_hash" ] && current_hash=$(get_flows_hash)
-+  
-+  mkdir -p /data
-   cat > "$STATE_FILE" <<EOF
- {
-   "nodered_managed": true,
-   "version": "$ADDON_VERSION",
-+  "flows_hash": "$current_hash",
-   "last_update": "$(date -Iseconds)"
- }
- EOF
-   bashio::log.info "   Marked Node-RED as managed by LibreCoach"
- }
- 
- get_managed_version() {
-   if [ ! -f "$STATE_FILE" ]; then
-     echo ""
-     return
-   fi
-   jq -r '.version // ""' "$STATE_FILE"
- }
- 
-+get_flows_hash() {
-+  if [ -f "/opt/librecoach-project/flows.json" ]; then
-+    md5sum "/opt/librecoach-project/flows.json" | cut -d' ' -f1
-+  else
-+    echo "unknown"
-+  fi
-+}
-+
-+get_managed_hash() {
-+  if [ ! -f "$STATE_FILE" ]; then
-+    echo ""
-+    return
-+  fi
-+  jq -r '.flows_hash // ""' "$STATE_FILE"
-+}
+mark_nodered_managed() {
+  local current_hash=$1
+  [ -z "$current_hash" ] && current_hash=$(get_flows_hash)
+  
+  mkdir -p /data
+  cat > "$STATE_FILE" <<EOF
+{
+  "nodered_managed": true,
+  "version": "$ADDON_VERSION",
+  "flows_hash": "$current_hash",
+  "last_update": "$(date -Iseconds)"
+}
+EOF
+  bashio::log.info "   Marked Node-RED as managed by LibreCoach"
+}
+
+get_managed_version() {
+  if [ ! -f "$STATE_FILE" ]; then
+    echo ""
+    return
+  fi
+  jq -r '.version // ""' "$STATE_FILE"
+}
+
+get_flows_hash() {
+  if [ -f "/opt/librecoach-project/flows.json" ]; then
+    md5sum "/opt/librecoach-project/flows.json" | cut -d' ' -f1
+  else
+    echo "unknown"
+  fi
+}
+
+get_managed_hash() {
+  if [ ! -f "$STATE_FILE" ]; then
+    echo ""
+    return
+  fi
+  jq -r '.flows_hash // ""' "$STATE_FILE"
+}
 
 # Ensure this addon starts on boot (upgrades from older versions may have boot: manual)
 api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true,"ingress_panel":true}' > /dev/null
