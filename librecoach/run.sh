@@ -198,7 +198,7 @@ set_options() {
 
 restart_addon() {
   local slug=$1
-  bashio::log.info "   Restarting $slug"
+  #bashio::log.info "   Restarting $slug"
   local result
   result=$(api_call POST "/addons/$slug/restart")
 
@@ -222,7 +222,6 @@ restart_addon() {
 
 set_boot_auto() {
   local slug=$1
-  bashio::log.info "   Setting $slug to start on boot with watchdog"
   local result
   result=$(api_call POST "/addons/$slug/options" '{"boot":"auto","watchdog":true}')
   if echo "$result" | jq -e '.result == "ok"' >/dev/null 2>&1; then
@@ -400,6 +399,7 @@ else
 fi
 
 # Ensure Mosquitto starts on boot
+  bashio::log.info "   Setting Mosquitto to start on boot with watchdog"
 set_boot_auto "$SLUG_MOSQUITTO" || bashio::log.warning "   ⚠️  Could not set Mosquitto to auto-start"
 
 # Ensure librecoach MQTT user exists in Mosquitto
@@ -423,6 +423,7 @@ if [ "$NEW_MOSQUITTO_OPTIONS" != "$MOSQUITTO_OPTIONS" ]; then
   api_call POST "/addons/$SLUG_MOSQUITTO/options" "{\"options\": $NEW_MOSQUITTO_OPTIONS}" > /dev/null
   bashio::log.info "   Configured Mosquitto user: $MQTT_USER"
   if is_running "$SLUG_MOSQUITTO"; then
+    bashio::log.info "   Restarting Mosquitto to apply new configuration"
     restart_addon "$SLUG_MOSQUITTO" || exit 1
   fi
 else
@@ -774,6 +775,7 @@ else
 fi
 
 # Ensure Node-RED starts on boot
+  bashio::log.info "   Setting Node-RED to start on boot with watchdog"
 set_boot_auto "$SLUG_NODERED" || bashio::log.warning "   ⚠️  Could not set Node-RED to auto-start"
 
 # Mark/update Node-RED as managed by LibreCoach (updates version on upgrades)
@@ -789,7 +791,8 @@ bashio::log.info "╠═══════════════════�
 bashio::log.info "║  MQTT Integration ................ Configured              ║"
 bashio::log.info "║  Mosquitto MQTT Broker ........... Running                 ║"
 bashio::log.info "║  Vehicle Bridge .................. Running                 ║"
-bashio::log.info "║  Node-RED ........................ Configured              ║"
+bashio::log.info "║  Bluetooth server ................ Installed               ║"
+bashio::log.info "║  Node-RED ........................ Running                 ║"
 bashio::log.info "╠════════════════════════════════════════════════════════════╣"
 bashio::log.info "║  All components installed successfully!                    ║"
 bashio::log.info "║  Visit https://LibreCoach.com for more information         ║"
