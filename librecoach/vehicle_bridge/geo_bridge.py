@@ -7,6 +7,8 @@ import os
 import urllib.request
 import urllib.error
 
+import websockets
+
 log = logging.getLogger("vehicle_bridge.geo")
 
 # Constants
@@ -219,12 +221,9 @@ class GeoBridge:
         if elevation is not None:
             ha_config["elevation"] = int(round(elevation))
 
-        # Push to HA
+        # Push to HA via WebSocket API (config/core/update is WebSocket-only)
         try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._api_post, "/config/core/update", ha_config
-            )
+            await self._ws_update_config(ha_config)
             log.info(
                 "Updated HA location: %s, %s → %s (%.1f mi moved)",
                 city_name, state_name, timezone, distance_moved,
@@ -306,17 +305,41 @@ class GeoBridge:
             log.debug("API GET %s failed: %s", path, exc)
             return None
 
-    def _api_post(self, path, data):
-        """POST JSON to Supervisor API."""
-        url = f"{SUPERVISOR_URL}{path}"
-        body = json.dumps(data).encode("utf-8")
-        req = urllib.request.Request(url, data=body, method="POST")
-        req.add_header("Authorization", f"Bearer {self._token}")
-        req.add_header("Content-Type", "application/json")
+    async def _ws_update_config(self, config_data):
+        """Update HA core config via WebSocket API (the only way to do this)."""
+        url = "ws://supervisor/core/websocket"
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            response_body = exc.read().decode("utf-8", errors="replace")
-            log.error("API POST %s failed: %s %s — %s", url, exc.code, exc.reason, response_body)
-            raise
+            async with asyncio.timeout(15):
+                async with websockets.connect(
+                    url,
+                    additional_headers={
+                        "Authorization": f"Bearer {self._token}",
+                    },
+                ) as ws:
+                    # Step 1: Receive auth_required
+                    msg = json.loads(await ws.recv())
+                    if msg.get("type") != "auth_required":
+                        raise RuntimeError(f"Expected auth_required, got: {msg}")
+
+                    # Step 2: Authenticate with Supervisor token
+                    await ws.send(json.dumps({
+                        "type": "auth",
+                        "access_token": self._token,
+                    }))
+                    msg = json.loads(await ws.recv())
+                    if msg.get("type") != "auth_ok":
+                        raise RuntimeError(f"Auth failed: {msg}")
+
+                    # Step 3: Send config/core/update command
+                    await ws.send(json.dumps({
+                        "id": 1,
+                        "type": "config/core/update",
+                        **config_data,
+                    }))
+                    msg = json.loads(await ws.recv())
+                    if not msg.get("success"):
+                        raise RuntimeError(
+                            f"config/core/update failed: {msg.get('error', msg)}"
+                        )
+        except TimeoutError:
+            raise RuntimeError("WebSocket config update timed out after 15s")

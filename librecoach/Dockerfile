@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     python-can \
     paho-mqtt \
     pyserial \
-    bitstruct
+    bitstruct \
+    websockets
 
 # Bundle the Node-RED Project
 # Always pulls latest from main branch
