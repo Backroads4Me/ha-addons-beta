@@ -313,5 +313,10 @@ class GeoBridge:
         req = urllib.request.Request(url, data=body, method="POST")
         req.add_header("Authorization", f"Bearer {self._token}")
         req.add_header("Content-Type", "application/json")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace")
+            log.error("API POST %s failed: %s %s — %s", url, exc.code, exc.reason, response_body)
+            raise
