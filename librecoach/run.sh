@@ -684,10 +684,13 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
   fi
 fi
 
+# Save the previous hash before marking managed (needed for flow update detection later)
+PREVIOUS_FLOWS_HASH=$(get_managed_hash)
+FLOWS_HASH=$(get_flows_hash)
+
 # Mark Node-RED as managed now, before configuration steps that may fail and trigger a watchdog
 # restart. Without this, a failed restart_addon call causes the next run to see Node-RED as
 # installed-but-unmanaged and incorrectly prompt for takeover permission.
-FLOWS_HASH=$(get_flows_hash)
 mark_nodered_managed "$FLOWS_HASH"
 
 # Configure Node-RED
@@ -741,8 +744,7 @@ fi
 
 # Check if flows file has changed (requiring a restart to pick up)
 if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
-  MANAGED_HASH=$(get_managed_hash)
-  if [ -n "$MANAGED_HASH" ] && [ "$MANAGED_HASH" != "$FLOWS_HASH" ]; then
+  if [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
     bashio::log.info "   📦 Updated LibreCoach flows.json detected. Forcing Node-RED restart to apply changes."
     NEEDS_RESTART=true
   fi

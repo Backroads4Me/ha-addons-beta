@@ -63,15 +63,15 @@ class GeoBridge:
             coords = await self._fetch_coordinates()
             if coords is not None:
                 lat, lon, elev, tracker_id = coords
-                await self._check_and_update(lat, lon, elev, tracker_id, force=True)
-                break
+                if await self._check_and_update(lat, lon, elev, tracker_id, force=True):
+                    break
             log.warning(
-                "Supervisor API not ready (attempt %d/%d), retrying in %ds",
+                "Waiting for HA API (attempt %d/%d), retrying in %ds",
                 attempt, STARTUP_MAX_RETRIES, STARTUP_RETRY_DELAY,
             )
             await asyncio.sleep(STARTUP_RETRY_DELAY)
         else:
-            log.warning("Could not reach Supervisor API at startup — will retry in poll loop")
+            log.warning("Could not update location at startup — will retry in poll loop")
 
         self._poll_task = asyncio.create_task(self._poll_loop())
         log.info(
@@ -223,7 +223,7 @@ class GeoBridge:
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
-                None, self._api_post, "/services/homeassistant/set_location", ha_config
+                None, self._api_post, "/config/core/update", ha_config
             )
             log.info(
                 "Updated HA location: %s, %s → %s (%.1f mi moved)",
@@ -231,7 +231,7 @@ class GeoBridge:
             )
         except Exception:
             log.exception("Failed to update HA core config")
-            return
+            return False
 
         self._last_lat = lat
         self._last_lon = lon
@@ -249,6 +249,7 @@ class GeoBridge:
             "distance_moved": round(distance_moved, 1),
         }
         self.mqtt.publish(MQTT_TOPIC, json.dumps(payload), retain=True)
+        return True
 
     # ------------------------------------------------------------------
     # City lookup
