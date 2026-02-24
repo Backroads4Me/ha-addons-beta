@@ -516,7 +516,7 @@ bashio::log.info "   Published config toggles to MQTT"
 # LibreCoach BLE Integration
 # ========================
 
-bashio::log.info "LibreCoach Bluetooth Integration"
+bashio::log.info "Bluetooth Integration"
 
 INTEGRATION_SRC="/opt/librecoach_ble"
 INTEGRATION_DST="/config/custom_components/librecoach_ble"
@@ -578,7 +578,7 @@ if [ "$NEEDS_HA_RESTART" = "true" ]; then
     api_call POST "/core/restart" >/dev/null 2>&1
 
     # Wait for HA to come back (10s initial delay + up to ~2 min polling)
-    bashio::log.info "   Waiting for Home Assistant to restart"
+    bashio::log.info "   Waiting for Home Assistant to finish restarting"
     sleep 10
     retries=30
     while [ $retries -gt 0 ]; do
@@ -734,7 +734,6 @@ fi
 # Check if flows file has changed (requiring a restart to pick up)
 if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
   if [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
-    bashio::log.info "   📦 Updated LibreCoach flows.json detected. Forcing Node-RED restart to apply changes."
     NEEDS_RESTART=true
   fi
 fi
@@ -769,7 +768,7 @@ if wait_for_nodered_api; then
     mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
     mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
     mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
-    bashio::log.info "   Re-published config toggles to MQTT (Node-RED is ready)"
+    bashio::log.info "   Re-published config toggles to MQTT"
 else
     bashio::log.warning "   ⚠️  Node-RED API did not respond. It may still be starting."
 fi
