@@ -525,19 +525,16 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
     # Write config file for the integration to read at runtime
     MICROAIR_PASSWORD=$(bashio::config 'microair_password')
     MICROAIR_EMAIL=$(bashio::config 'microair_email')
-    BLE_SCAN_INTERVAL=$(bashio::config 'ble_scan_interval')
 
     jq -n \
         --argjson enabled true \
         --arg password "$MICROAIR_PASSWORD" \
         --arg email "$MICROAIR_EMAIL" \
-        --argjson scan_interval "${BLE_SCAN_INTERVAL:-30}" \
         --arg slug "$OWNER_SLUG" \
         '{
             microair_enabled: $enabled,
             microair_password: $password,
             microair_email: $email,
-            ble_scan_interval: $scan_interval,
             addon_slug: $slug
         }' > /config/.librecoach-ble-config.json
 

@@ -14,7 +14,7 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.core import HomeAssistant
 
-from .const import TOPIC_STATE, TOPIC_SET, TOPIC_AVAILABLE, TOPIC_BRIDGE, CONFIG_PATH
+from .const import TOPIC_STATE, TOPIC_SET, TOPIC_AVAILABLE, TOPIC_BRIDGE, CONFIG_PATH, BLE_POLL_INTERVAL
 from .devices import DEVICE_HANDLERS
 
 _LOGGER = logging.getLogger(__name__)
@@ -214,7 +214,7 @@ class BleBridgeManager:
     async def _poll_loop(self, handler, address: str):
         """Poll a device at regular intervals, publish state to MQTT."""
         device_type = handler.device_type()
-        poll_interval = int(self.config.get("ble_scan_interval", 30))
+        poll_interval = BLE_POLL_INTERVAL
         failure_count = 0
 
         while not self._stopping:

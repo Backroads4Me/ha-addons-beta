@@ -127,20 +127,17 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
             _LOGGER.warning("LibreCoach add-on (%s) not found in Double-Lock check (Attempt %d/%d).", slug, attempt + 1, max_retries)
             confirmed_missing += 1
         except Exception as exc:
-            _LOGGER.debug("Double-Lock check error (Attempt %d/%d): %s", attempt + 1, max_retries, exc)
+            _LOGGER.warning("Double-Lock check error (Attempt %d/%d): %s", attempt + 1, max_retries, exc)
 
         if attempt < max_retries - 1:
             await asyncio.sleep(retry_delay)
 
     # Destructive cleanup ONLY if every retry definitively confirmed the add-on is missing.
-    # If any attempt errored (ambiguous), fail-safe by stopping the bridge without cleanup.
+    # If any attempt errored (ambiguous), assume present and let the bridge continue.
     if confirmed_missing == max_retries:
         await _perform_self_cleanup(hass, slug)
     else:
-        _LOGGER.error("Double-Lock: Could not confirm %s is installed after %d retries. Aborting bridge for safety.", slug, max_retries)
-        manager = hass.data.get(DOMAIN)
-        if manager:
-            await manager.stop()
+        _LOGGER.warning("Double-Lock: Could not definitively confirm %s status after %d retries (API errors). Assuming present — bridge continues.", slug, max_retries)
 
 async def _perform_self_cleanup(hass: HomeAssistant, slug: str):
     """Clean up configuration if original add-on is gone."""

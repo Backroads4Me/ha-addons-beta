@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.74"
+version: "1.0.75"
 slug: "librecoach"
 description: "Smart home control for your RV"
 url: "https://librecoach.com"
@@ -34,7 +34,6 @@ options:
   microair_enabled: false
   microair_email: ""
   microair_password: ""
-  ble_scan_interval: 30
   victron_enabled: true
   beta_enabled: false
   confirm_nodered_takeover: false
@@ -53,7 +52,6 @@ schema:
   microair_enabled: bool
   microair_email: str?
   microair_password: password?
-  ble_scan_interval: "int(10,300)?"
   victron_enabled: bool
   beta_enabled: bool
   confirm_nodered_takeover: bool

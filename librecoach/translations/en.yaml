@@ -20,9 +20,6 @@ configuration:
   microair_password:
     name: "Micro-Air Account Password"
     description: "Password for your Micro-Air EasyTouch account (required for some devices)."
-  ble_scan_interval:
-    name: "BLE Scan Interval"
-    description: "How often (in seconds) to poll Bluetooth devices. Range: 10-300."
   victron_enabled:
     name: "Enable Victron Energy Integration"
     description: "Requires a GX device with MQTT enabled."
