@@ -223,7 +223,7 @@ class GeoBridge:
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
-                None, self._api_post, "/config/core", ha_config
+                None, self._api_post, "/services/homeassistant/set_location", ha_config
             )
             log.info(
                 "Updated HA location: %s, %s → %s (%.1f mi moved)",

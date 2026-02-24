@@ -59,6 +59,32 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 _LOGGER.info("Cleared locked device addresses")
             except Exception as exc:
                 _LOGGER.debug("Failed to clear locked devices: %s", exc)
+
+        # Remove entities and devices from HA registry since it is disabled
+        try:
+            from homeassistant.helpers import device_registry as dr
+            from homeassistant.helpers import entity_registry as er
+            
+            device_reg = dr.async_get(hass)
+            entity_reg = er.async_get(hass)
+
+            # Find all devices belonging to this domain
+            devices = [
+                device
+                for device in device_reg.devices.values()
+                if DOMAIN in device.identifiers or any(id_tuple[0] == DOMAIN for id_tuple in device.identifiers)
+            ]
+
+            if devices:
+                _LOGGER.info("Removing %d MicroAir devices and associated entities because integration is disabled", len(devices))
+                for device in devices:
+                    device_reg.async_remove_device(device.id)
+            else:
+                _LOGGER.debug("No MicroAir devices found to remove")
+
+        except Exception as exc:
+            _LOGGER.error("Failed to clean up MicroAir devices: %s", exc)
+
         return True
 
     manager = BleBridgeManager(hass, conf)
@@ -90,6 +116,8 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
         return
 
     supervisor = os.environ.get("SUPERVISOR", "http://supervisor")
+    if not supervisor.startswith("http://") and not supervisor.startswith("https://"):
+        supervisor = f"http://{supervisor}"
     headers = {"Authorization": f"Bearer {token}"}
     session = async_get_clientsession(hass)
     timeout = aiohttp.ClientTimeout(total=10)
@@ -127,7 +155,7 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
             _LOGGER.warning("LibreCoach add-on (%s) not found in Double-Lock check (Attempt %d/%d).", slug, attempt + 1, max_retries)
             confirmed_missing += 1
         except Exception as exc:
-            _LOGGER.warning("Double-Lock check error (Attempt %d/%d): %s", attempt + 1, max_retries, exc)
+            _LOGGER.warning("Double-Lock check error (Attempt %d/%d): [%s] %s", attempt + 1, max_retries, type(exc).__name__, exc)
 
         if attempt < max_retries - 1:
             await asyncio.sleep(retry_delay)

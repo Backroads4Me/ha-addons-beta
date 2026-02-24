@@ -344,9 +344,9 @@ get_managed_hash() {
 api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/null
 
 # ========================
-# Phase 0: Deployment
+# Deployment
 # ========================
-bashio::log.info "Phase 0: Deploying Files"
+bashio::log.info "Deploying Files"
 
 # Ensure directory exists
 mkdir -p "$PROJECT_PATH"
@@ -382,9 +382,9 @@ bashio::log.info "   Project files deployed"
 
 
 # ========================
-# Phase 1: Mosquitto MQTT Broker
+# Mosquitto MQTT Broker
 # ========================
-bashio::log.info "Phase 1: Mosquitto MQTT Broker"
+bashio::log.info "Mosquitto MQTT Broker"
 
 if is_installed "$SLUG_MOSQUITTO"; then
   # Mosquitto is installed, ensure it's running
@@ -513,11 +513,11 @@ mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
 bashio::log.info "   Published config toggles to MQTT"
 
 # ========================
-# Phase 1.5: LibreCoach BLE Integration
+# LibreCoach BLE Integration
 # ========================
 
 if [ "$MICROAIR_ENABLED" = "true" ]; then
-    bashio::log.info "Phase 1.5: LibreCoach Bluetooth Integration"
+    bashio::log.info "LibreCoach Bluetooth Integration"
 
     INTEGRATION_SRC="/opt/librecoach_ble"
     INTEGRATION_DST="/config/custom_components/librecoach_ble"
@@ -598,7 +598,7 @@ if [ "$MICROAIR_ENABLED" = "true" ]; then
 
     bashio::log.info "   LibreCoach Bluetooth integration ready"
 else
-    bashio::log.info "Phase 1.5: MicroAir disabled, skipping BLE integration"
+    bashio::log.info "MicroAir disabled, skipping BLE integration"
 
     # Clean up if previously installed but now disabled
     if [ -d "/config/custom_components/librecoach_ble" ]; then
@@ -610,9 +610,9 @@ else
 fi
 
 # ========================
-# Phase 2: Node-RED
+# Node-RED
 # ========================
-bashio::log.info "Phase 2: Node-RED"
+bashio::log.info "Node-RED"
 
 CONFIRM_TAKEOVER=$(bashio::config 'confirm_nodered_takeover')
 NODERED_ALREADY_INSTALLED=false
@@ -772,7 +772,14 @@ fi
 
 # Wait for Node-RED to be available before proceeding.
 # Flows are loaded automatically by Node-RED on startup via init_commands — no API deploy needed.
-if ! wait_for_nodered_api; then
+if wait_for_nodered_api; then
+    # Re-publish config toggles now that Node-RED is online.
+    # The initial publish (retained) may be missed if the broker cycled during startup.
+    mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
+    mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
+    mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
+    bashio::log.info "   Re-published config toggles to MQTT (Node-RED is ready)"
+else
     bashio::log.warning "   ⚠️  Node-RED API did not respond. It may still be starting."
 fi
 
