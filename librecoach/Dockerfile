@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-addon-base:latest
 
 # --- Build stage: install build-only tools ---
 FROM $BUILD_FROM AS builder
@@ -29,8 +29,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Runtime dependencies only (no git, no pip)
 RUN apk add --no-cache \
-    curl \
-    jq \
     rsync \
     mosquitto-clients \
     coreutils \
