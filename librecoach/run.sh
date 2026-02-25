@@ -66,6 +66,7 @@ check_mqtt_integration() {
   while [ $retries -gt 0 ]; do
     local response
     response=$(api_call GET "/core/api/components")
+    log_debug "Raw components response: $response"
 
     if [ -n "$response" ] && ! echo "$response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
       # Only valid JSON array expected here. If it's valid JSON and contains "mqtt", we're good.
@@ -80,20 +81,24 @@ check_mqtt_integration() {
     # Check HA state to fail fast if HA is already fully running but mqtt is not configured
     local config_response
     config_response=$(api_call GET "/core/api/config")
+    log_debug "Raw config response: $config_response"
     
     if [ -n "$config_response" ] && ! echo "$config_response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
       local ha_state
       # Explicitly grab the state string. If jq fails, ha_state is empty.
       ha_state=$(echo "$config_response" | jq -r '.state // empty' 2>/dev/null)
+      log_debug "Parsed ha_state: $ha_state"
       
       if [ "$ha_state" == "RUNNING" ]; then
         # HA is fully started. Check components once more to be absolutely sure.
         response=$(api_call GET "/core/api/components")
+        log_debug "Final components check: $response"
         if [ -n "$response" ] && echo "$response" | jq -e 'if type == "array" then index("mqtt") else false end' >/dev/null 2>&1; then
             return 0
         fi
         
         # If we got here, HA is RUNNING and we still don't have MQTT. Fail fast.
+        log_debug "HA is RUNNING but mqtt not found in components"
         return 1
       fi
     fi
