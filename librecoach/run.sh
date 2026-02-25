@@ -67,24 +67,35 @@ check_mqtt_integration() {
     local response
     response=$(api_call GET "/core/api/components")
 
-    if [ -n "$response" ] && echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
-      if [ "$logged_wait" = "true" ]; then
-        bashio::log.info "   MQTT integration found"
+    if [ -n "$response" ]; then
+      local has_mqtt
+      has_mqtt=$(echo "$response" | jq -r 'if index("mqtt") then "true" else "false" end' 2>/dev/null || echo "false")
+      
+      if [ "$has_mqtt" = "true" ]; then
+        if [ "$logged_wait" = "true" ]; then
+          bashio::log.info "   MQTT integration found"
+        fi
+        return 0
       fi
-      return 0
     fi
 
     # Check HA state to fail fast if HA is already fully running but mqtt is not configured
     local config_response
     config_response=$(api_call GET "/core/api/config")
-    if [ -n "$config_response" ] && echo "$config_response" | jq -e 'has("state")' >/dev/null 2>&1; then
+    
+    if [ -n "$config_response" ]; then
       local ha_state
-      ha_state=$(echo "$config_response" | jq -r '.state')
-      if [ "$ha_state" = "RUNNING" ]; then
+      ha_state=$(echo "$config_response" | jq -r '.state // empty' 2>/dev/null)
+      
+      if [[ "$ha_state" == *"RUNNING"* ]]; then
         # HA is fully started. Check components once more to be absolutely sure.
         response=$(api_call GET "/core/api/components")
-        if [ -n "$response" ] && echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
-          return 0
+        if [ -n "$response" ]; then
+          local final_check
+          final_check=$(echo "$response" | jq -r 'if index("mqtt") then "true" else "false" end' 2>/dev/null || echo "false")
+          if [ "$final_check" = "true" ]; then
+            return 0
+          fi
         fi
         return 1
       fi

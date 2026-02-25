@@ -34,8 +34,6 @@ RUN apk add --no-cache \
     coreutils \
     iproute2 \
     python3 \
-    bluez \
-    dbus-libs \
     can-utils
 
 # Copy Python packages from builder to a staging dir, then move to correct location
