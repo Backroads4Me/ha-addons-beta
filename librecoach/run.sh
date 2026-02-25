@@ -67,11 +67,9 @@ check_mqtt_integration() {
     local response
     response=$(api_call GET "/core/api/components")
 
-    if [ -n "$response" ]; then
-      local has_mqtt
-      has_mqtt=$(echo "$response" | jq -r 'if index("mqtt") then "true" else "false" end' 2>/dev/null || echo "false")
-      
-      if [ "$has_mqtt" = "true" ]; then
+    if [ -n "$response" ] && ! echo "$response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
+      # Only valid JSON array expected here. If it's valid JSON and contains "mqtt", we're good.
+      if echo "$response" | jq -e 'if type == "array" then index("mqtt") else false end' >/dev/null 2>&1; then
         if [ "$logged_wait" = "true" ]; then
           bashio::log.info "   MQTT integration found"
         fi
@@ -83,20 +81,19 @@ check_mqtt_integration() {
     local config_response
     config_response=$(api_call GET "/core/api/config")
     
-    if [ -n "$config_response" ]; then
+    if [ -n "$config_response" ] && ! echo "$config_response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
       local ha_state
+      # Explicitly grab the state string. If jq fails, ha_state is empty.
       ha_state=$(echo "$config_response" | jq -r '.state // empty' 2>/dev/null)
       
-      if [[ "$ha_state" == *"RUNNING"* ]]; then
+      if [ "$ha_state" == "RUNNING" ]; then
         # HA is fully started. Check components once more to be absolutely sure.
         response=$(api_call GET "/core/api/components")
-        if [ -n "$response" ]; then
-          local final_check
-          final_check=$(echo "$response" | jq -r 'if index("mqtt") then "true" else "false" end' 2>/dev/null || echo "false")
-          if [ "$final_check" = "true" ]; then
+        if [ -n "$response" ] && echo "$response" | jq -e 'if type == "array" then index("mqtt") else false end' >/dev/null 2>&1; then
             return 0
-          fi
         fi
+        
+        # If we got here, HA is RUNNING and we still don't have MQTT. Fail fast.
         return 1
       fi
     fi
