@@ -68,7 +68,7 @@ check_mqtt_integration() {
     response=$(api_call GET "/core/api/components")
     log_debug "Raw components response: $response"
 
-    if [ -n "$response" ] && ! echo "$response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
+    if [ -n "$response" ] && ! echo "$response" | grep -q -E "502|Bad Gateway|Gateway|Error" >/dev/null 2>&1; then
       # Only valid JSON array expected here. If it's valid JSON and contains "mqtt", we're good.
       if echo "$response" | jq -e 'if type == "array" then index("mqtt") else false end' >/dev/null 2>&1; then
         if [ "$logged_wait" = "true" ]; then
@@ -83,7 +83,7 @@ check_mqtt_integration() {
     config_response=$(api_call GET "/core/api/config")
     log_debug "Raw config response: $config_response"
     
-    if [ -n "$config_response" ] && ! echo "$config_response" | grep -q "502 Bad Gateway" >/dev/null 2>&1; then
+    if [ -n "$config_response" ] && ! echo "$config_response" | grep -q -E "502|Bad Gateway|Gateway|Error" >/dev/null 2>&1; then
       local ha_state
       # Explicitly grab the state string. If jq fails, ha_state is empty.
       ha_state=$(echo "$config_response" | jq -r '.state // empty' 2>/dev/null)
