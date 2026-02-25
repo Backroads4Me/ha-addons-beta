@@ -57,6 +57,8 @@ mkdir -p "$PROJECT_DIR/data"
 cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 
 # Copy package.json to config directory for Node-RED dependencies
+# This ensures that LibreCoach-required nodes (e.g. node-red-contrib-markdown-note) 
+# are automatically installed by Node-RED during its npm initialization phase.
 cp "$SOURCE_DIR/package.json" /config/package.json
 
 # Copy flows.json and flows_cred.json to Node-RED config
@@ -65,6 +67,8 @@ cp "$SOURCE_DIR/flows.json" /config/flows.json
 cp "$SOURCE_DIR/flows_cred.json" /config/flows_cred.json
 
 # Copy settings.js to Node-RED config
+# This allows LibreCoach to inject custom environment variables, global contexts, 
+# or specific node configurations required by the bundled flows.
 cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 
 # Keep GPL license with the installed project

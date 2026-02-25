@@ -8,7 +8,7 @@ Most operational settings are managed in the **LibreCoach** sidebar panel — cl
 
 | Setting                            | Description                                                                                  |
 | :--------------------------------- | :------------------------------------------------------------------------------------------- |
-| **Automated GPS Location Updates** | Syncs your Home Assistant location, timezone, and elevation from a GPS device tracker.       |
+| **Automated Location Updates**     | Syncs your Home Assistant location, timezone, and elevation from a device_tracker.           |
 | **Victron**                        | Enable or disable Victron GX device support. Enabled by default.                             |
 | **Micro-Air EasyTouch**            | Enable Bluetooth thermostat integration. Requires your Micro-Air account email and password. |
 | **Beta Testing**                   | Enables experimental features still in development.                                          |

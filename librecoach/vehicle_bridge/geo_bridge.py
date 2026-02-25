@@ -306,9 +306,15 @@ class GeoBridge:
             return None
 
     async def _ws_update_config(self, config_data):
-        """Update HA core config via WebSocket API (the only way to do this)."""
+        """Update HA core config via WebSocket API.
+        
+        NOTE: The HA REST API does not support updating core configuration 
+        (like latitude, longitude, and elevation). The `config/core/update` 
+        command is exclusively exposed via the WebSocket API.
+        """
         url = "ws://supervisor/core/websocket"
         try:
+            # 15s timeout protects the poll loop from hanging if the Supervisor proxy stalls
             async with asyncio.timeout(15):
                 async with websockets.connect(
                     url,

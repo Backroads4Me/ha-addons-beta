@@ -11,8 +11,8 @@ To make setup easy, LibreCoach is delivered as a **Home Assistant Add-on**.
 
 ## Features
 
-- **System Orchestrator**: One-click setup. The add-on automatically installs and configures the official Mosquitto Broker, CAN-to-MQTT Bridge, and Node-RED.
-- **Hardware Bridge**: Connects directly to your CAN hardware (e.g., Waveshare HAT) and bridges RV-C network traffic to Home Assistant.
+- **System Orchestrator**: One-click setup. The add-on automatically installs and configures the official Mosquitto Broker and Node-RED.
+- **Hardware Bridge**: Connects directly to your CAN hardware (e.g., Waveshare HAT) and bridges RV-C network traffic to Home Assistant natively.
 - **Project Bundler**: Deploys pre-configured LibreCoach automation flows to instantly interpret your RV's data.
 
 ## Requirements
@@ -34,7 +34,7 @@ Find **LibreCoach** in the store and click **Install**, then **Start**.
 **The add-on will perform the following "Orchestration" steps:**
 
 1.  Check for **Mosquitto** and install/configure it if missing.
-2.  Check for **CAN-to-MQTT Bridge** and install/configure it.
+2.  Start the internal **RV-C and Location Tracking Bridges**.
 3.  Check for **Node-RED** and install/configure it.
 4.  **Deploy** the LibreCoach automation flows.
 

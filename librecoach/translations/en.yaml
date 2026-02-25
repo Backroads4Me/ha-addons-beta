@@ -1,31 +1,31 @@
 configuration:
   geo_enabled:
-    name: "Enable Automated GPS Location Updates"
-    description: "Updates Home Assistant's location, timezone, and elevation based on GPS data."
+    name: "Enable Automated Location Updates"
+    description: "Updates Home Assistant's location, timezone, and elevation based on device_tracker data."
   geo_device_tracker_primary:
-    name: "Primary GPS Tracker"
-    description: "Entity ID of the primary device tracker for GPS location (e.g., device_tracker.phone)."
+    name: "Primary Device Tracker"
+    description: "Entity ID of the primary device tracker for location (e.g., device_tracker.phone)."
   geo_device_tracker_secondary:
-    name: "Secondary GPS Tracker (Fallback)"
+    name: "Secondary Device Tracker (Fallback)"
     description: "Entity ID of a fallback device tracker used when the primary is unavailable."
   geo_update_threshold:
     name: "Update Threshold (miles)"
     description: "Minimum distance in miles the RV must move before updating location data. Range: 1-500."
   microair_enabled:
     name: "Enable Micro-Air EasyTouch Thermostat Integration"
-    description: "Enables support for Micro-Air EasyTouch RV thermostats via Bluetooth."
+    description: "Connects to thermostats via Bluetooth."
   microair_email:
     name: "Micro-Air Account Email"
-    description: "Email address used for your Micro-Air EasyTouch account (required if password is set)."
+    description: "Email address used for your Micro-Air EasyTouch account."
   microair_password:
     name: "Micro-Air Account Password"
-    description: "Password for your Micro-Air EasyTouch account (required for some devices)."
+    description: "Password for your Micro-Air EasyTouch account."
   victron_enabled:
     name: "Enable Victron Energy Integration"
     description: "Requires a GX device with MQTT enabled."
   beta_enabled:
     name: "Enable Beta Features"
-    description: "Enables experimental features. Use at your own risk."
+    description: "Enables experimental features when available. Use at your own risk."
   confirm_nodered_takeover:
     name: "Allow Node-RED Overwrite (Initial install config only)"
     description: "Allows LibreCoach to overwrite your existing Node-RED flows. WARNING: This will delete your current flows!"
@@ -37,10 +37,10 @@ configuration:
     description: "Enables detailed debug logging for troubleshooting."
   mqtt_host:
     name: "MQTT Broker Host"
-    description: "Hostname or IP address of the MQTT broker (defaults to core-mosquitto)."
+    description: "Hostname or IP address of the MQTT broker."
   mqtt_port:
     name: "MQTT Broker Port"
-    description: "Port number for the MQTT broker (defaults to 1883)."
+    description: "Port number for the MQTT broker."
   mqtt_user:
     name: "MQTT User"
     description: "Username for MQTT authentication."
@@ -49,4 +49,4 @@ configuration:
     description: "Password for MQTT authentication."
   can_interface:
     name: "CAN Interface"
-    description: "System interface name for the CAN adapter (e.g., can0)."
+    description: "System interface name for the CAN adapter."

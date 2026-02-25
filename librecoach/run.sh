@@ -576,11 +576,13 @@ if [ -d "$INTEGRATION_DST" ]; then
 
     if [ "$BUNDLED_HASH" != "$INSTALLED_HASH" ]; then
         bashio::log.info "   Updating librecoach_ble integration"
+        log_debug "BLE hash mismatch (Bundled: $BUNDLED_HASH, Installed: $INSTALLED_HASH)"
         rm -rf "$INTEGRATION_DST"
         cp -r "$INTEGRATION_SRC" "$INTEGRATION_DST"
         NEEDS_HA_RESTART=true
     else
         bashio::log.info "   librecoach_ble is up to date"
+        log_debug "BLE hashes match: $INSTALLED_HASH"
     fi
 else
     bashio::log.info "   Installing librecoach_ble integration"
@@ -712,13 +714,15 @@ mark_nodered_managed "$FLOWS_HASH"
 
 # Configure Node-RED
 NR_INFO=$(api_call GET "/addons/$SLUG_NODERED/info")
-log_debug "NR_INFO response: $NR_INFO"
+log_debug "Node-RED Info API called."
 NR_OPTIONS=$(echo "$NR_INFO" | jq '.data.options // {}')
-log_debug "NR_OPTIONS extracted: $NR_OPTIONS"
 EXISTING_SECRET=$(echo "$NR_OPTIONS" | jq -r '.credential_secret // empty')
+log_debug "Existing credentials secret extracted."
 
-# Init command runs the script deployed to /share/.librecoach/
-# The script copies flows.json and flows_cred.json (credentials encrypted with "librecoach")
+# Because Home Assistant add-ons cannot mount volumes during installation, LibreCoach
+# deploys its project files to `/share/.librecoach`. We then inject a bash script into
+# Node-RED's `init_commands` array. When Node-RED boots, it runs this script to copy
+# the project files from the `/share` drive into its own protected `/config` volume.
 SETTINGS_INIT_CMD="bash /share/.librecoach/init-nodered.sh"
 
 # LibreCoach requires credential_secret to be "librecoach" for flows_cred.json decryption
@@ -766,6 +770,7 @@ fi
 # Check if flows file has changed (requiring a restart to pick up)
 if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
   if [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
+    log_debug "Flow hash changed from $PREVIOUS_FLOWS_HASH to $FLOWS_HASH"
     NEEDS_RESTART=true
   fi
 fi
@@ -845,9 +850,9 @@ bashio::log.info "║           LibreCoach Installation Summary                 
 bashio::log.info "╠════════════════════════════════════════════════════════════╣"
 bashio::log.info "║  MQTT Integration ................ Configured              ║"
 bashio::log.info "║  Mosquitto MQTT Broker ........... Running                 ║"
-bashio::log.info "║  Vehicle Bridge .................. Running                 ║"
-bashio::log.info "║  Bluetooth server ................ Installed               ║"
 bashio::log.info "║  Node-RED ........................ Running                 ║"
+bashio::log.info "║  RV-C Bridge ..................... Starting                ║"
+bashio::log.info "║  Bluetooth server ................ Starting                ║"
 bashio::log.info "╠════════════════════════════════════════════════════════════╣"
 bashio::log.info "║  All components installed successfully!                    ║"
 bashio::log.info "║  Visit https://LibreCoach.com for more information         ║"
