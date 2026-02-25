@@ -60,19 +60,47 @@ api_call() {
 check_mqtt_integration() {
   bashio::log.info "   Checking for MQTT integration..."
 
-  local response
-  response=$(api_call GET "/core/api/components")
+  local retries=24
+  local logged_wait=false
 
-  if [ -z "$response" ]; then
-    bashio::log.warning "   ⚠️  Unable to query Home Assistant Core API"
-    return 1
-  fi
+  while [ $retries -gt 0 ]; do
+    local response
+    response=$(api_call GET "/core/api/components")
 
-  if echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
-    return 0
-  else
-    return 1
-  fi
+    if [ -n "$response" ] && echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
+      if [ "$logged_wait" = "true" ]; then
+        bashio::log.info "   MQTT integration found"
+      fi
+      return 0
+    fi
+
+    # Check HA state to fail fast if HA is already fully running but mqtt is not configured
+    local config_response
+    config_response=$(api_call GET "/core/api/config")
+    if [ -n "$config_response" ] && echo "$config_response" | jq -e 'has("state")' >/dev/null 2>&1; then
+      local ha_state
+      ha_state=$(echo "$config_response" | jq -r '.state')
+      if [ "$ha_state" = "RUNNING" ]; then
+        # HA is fully started. Check components once more to be absolutely sure.
+        response=$(api_call GET "/core/api/components")
+        if [ -n "$response" ] && echo "$response" | jq -e 'index("mqtt")' >/dev/null 2>&1; then
+          return 0
+        fi
+        return 1
+      fi
+    fi
+
+    if [ "$logged_wait" = "false" ]; then
+      bashio::log.info "   Home Assistant is still starting. Waiting for MQTT component..."
+      logged_wait=true
+    fi
+
+    sleep 5
+    ((retries--))
+  done
+
+  bashio::log.warning "   ⚠️  Timed out waiting for Home Assistant to start"
+  return 1
 }
 
 send_notification() {
