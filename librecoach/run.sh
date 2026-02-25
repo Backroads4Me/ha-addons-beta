@@ -302,13 +302,14 @@ is_nodered_managed() {
 mark_nodered_managed() {
   local current_hash=$1
   [ -z "$current_hash" ] && current_hash=$(get_flows_hash)
-  
+
   mkdir -p /data
   cat > "$STATE_FILE" <<EOF
 {
   "nodered_managed": true,
   "version": "$ADDON_VERSION",
   "flows_hash": "$current_hash",
+  "prevent_flow_updates": $PREVENT_FLOW_UPDATES,
   "last_update": "$(date -Iseconds)"
 }
 EOF
@@ -337,6 +338,14 @@ get_managed_hash() {
     return
   fi
   jq -r '.flows_hash // ""' "$STATE_FILE"
+}
+
+get_managed_preserve_mode() {
+  if [ ! -f "$STATE_FILE" ]; then
+    echo ""
+    return
+  fi
+  jq -r '.prevent_flow_updates // ""' "$STATE_FILE"
 }
 
 # Ensure this addon starts on boot (upgrades from older versions may have boot: manual)
@@ -674,8 +683,9 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
   fi
 fi
 
-# Save the previous hash before marking managed (needed for flow update detection later)
+# Save previous state before marking managed (needed for flow update detection later)
 PREVIOUS_FLOWS_HASH=$(get_managed_hash)
+PREVIOUS_PRESERVE_MODE=$(get_managed_preserve_mode)
 FLOWS_HASH=$(get_flows_hash)
 
 # Mark Node-RED as managed now, before configuration steps that may fail and trigger a watchdog
@@ -721,7 +731,11 @@ else
 
   # Check if config needs updating (init command changed or users auth still present)
   if [ "$CURRENT_INIT_CMD" != "$SETTINGS_INIT_CMD" ] || [ "$HAS_USERS" = "true" ]; then
-    bashio::log.info "   Updating Node-RED configuration (init commands)"
+    if [ -z "$CURRENT_INIT_CMD" ]; then
+      bashio::log.warning "   ⚠️  Node-RED init command is missing. Restoring."
+    else
+      bashio::log.info "   Updating Node-RED configuration (init commands)"
+    fi
     NEW_OPTIONS=$(echo "$NR_OPTIONS" | jq \
       --arg initcmd "$SETTINGS_INIT_CMD" \
       '. + {"init_commands": [$initcmd]} | del(.users)')
@@ -737,6 +751,30 @@ if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
   if [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
     NEEDS_RESTART=true
   fi
+fi
+
+# Detect preserve-mode transition: if preserve was previously enabled and is now disabled,
+# run the full Node-RED verification — ensure the init command is present, using the correct
+# (overwrite) init script, and restart Node-RED to replace preserved flows with bundled flows.
+if [ "$PREVIOUS_PRESERVE_MODE" = "true" ] && [ "$PREVENT_FLOW_UPDATES" != "true" ]; then
+  bashio::log.info "   Flow preservation was disabled. Verifying Node-RED configuration."
+
+  # Re-check init command — user may have removed it while in preserve mode
+  CURRENT_INIT_CMD=$(api_call GET "/addons/$SLUG_NODERED/info" | jq -r '.data.options.init_commands[0] // empty')
+  if [ "$CURRENT_INIT_CMD" != "$SETTINGS_INIT_CMD" ]; then
+    bashio::log.warning "   ⚠️  Node-RED init command is missing. Restoring."
+    # Re-read live options to avoid stale data from earlier set_options call
+    NR_OPTIONS_LIVE=$(api_call GET "/addons/$SLUG_NODERED/info" | jq '.data.options // {}')
+    NEW_OPTIONS=$(echo "$NR_OPTIONS_LIVE" | jq \
+      --arg initcmd "$SETTINGS_INIT_CMD" \
+      '. + {"init_commands": [$initcmd]} | del(.users)')
+    set_options "$SLUG_NODERED" "$NEW_OPTIONS" || exit 1
+  else
+    bashio::log.info "   Node-RED init command verified"
+  fi
+
+  bashio::log.info "   Restarting Node-RED to restore standard flows."
+  NEEDS_RESTART=true
 fi
 
 # Ensure Node-RED starts/restarts to apply init commands
