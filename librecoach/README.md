@@ -41,7 +41,7 @@ Find **LibreCoach** in the store and click **Install**, then **Start**.
 ## Existing Node-RED Users
 
 If you already use Node-RED, LibreCoach will **PAUSE** to protect your work.
-To proceed, you must go to the **Configuration** tab and enable `confirm_nodered_takeover`.
+To proceed, you must go to the **Configuration** tab and enable `Allow Node-RED Overwrite`.
 _See the [Documentation](https://github.com/backroads4me/ha-addons/blob/main/librecoach/DOCS.md) for full details._
 
 ## Support
@@ -71,5 +71,6 @@ Contributions to the LibreCoach add-on require signing the CLA. See [CONTRIBUTIN
 LibreCoach is free and open source.
 If it's useful to you, you can support its development in either of these ways:
 
+[![Star Repository](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20Repo-GitHub-lightgrey?logo=github&logoColor=black)](https://github.com/Backroads4Me/ha-addons)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/Backroads4Me)
 [![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000000)](https://buymeacoffee.com/Backroads4Me)

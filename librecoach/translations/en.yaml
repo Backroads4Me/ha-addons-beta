@@ -4,10 +4,10 @@ configuration:
     description: "Updates Home Assistant's location, timezone, and elevation based on device_tracker data."
   geo_device_tracker_primary:
     name: "Primary Device Tracker"
-    description: "Entity ID of the primary device tracker for location (e.g., device_tracker.phone)."
+    description: "Entity ID of the primary device tracker for location (e.g., device_tracker.phone). Note: The tracker MUST provide GPS coordinates to work."
   geo_device_tracker_secondary:
     name: "Secondary Device Tracker (Fallback)"
-    description: "Entity ID of a fallback device tracker used when the primary is unavailable."
+    description: "Entity ID of a fallback device tracker used when the primary is unavailable. Note: The tracker MUST provide GPS coordinates to work."
   geo_update_threshold:
     name: "Update Threshold (miles)"
     description: "Minimum distance in miles the RV must move before updating location data. Range: 1-500."
