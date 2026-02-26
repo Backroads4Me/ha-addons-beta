@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.0.118"
+version: "1.0.119"
 slug: "librecoach"
 description: "Smart home control for your RV"
 url: "https://librecoach.com"
@@ -38,8 +38,6 @@ options:
   confirm_nodered_takeover: false
   prevent_flow_updates: false
   debug_logging: false
-  mqtt_host: "core-mosquitto"
-  mqtt_port: 1883
   mqtt_user: "librecoach"
   mqtt_pass: "One23four"
   can_interface: "can0"
@@ -56,8 +54,6 @@ schema:
   confirm_nodered_takeover: bool
   prevent_flow_updates: bool
   debug_logging: bool
-  mqtt_host: str?
-  mqtt_port: "int(1,65535)?"
   mqtt_user: str
   mqtt_pass: password
   can_interface: str
