@@ -659,6 +659,17 @@ fi
 # If Node-RED was already installed, check if we need takeover permission
 # Skip takeover check if already managed by LibreCoach
 if [ "$NODERED_ALREADY_INSTALLED" = "true" ]; then
+  # Migration: if state file doesn't exist but Node-RED's init_commands already
+  # point to LibreCoach, a previous version was managing it. Auto-create state file
+  # so upgrades don't re-prompt for takeover permission.
+  if ! is_nodered_managed; then
+    nr_init_check=$(api_call GET "/addons/$SLUG_NODERED/info" | jq -r '.data.options.init_commands[0] // empty')
+    if [[ "$nr_init_check" == *"librecoach"* ]]; then
+      bashio::log.info "   Migrating: previous LibreCoach version detected (init_commands present). Creating state file."
+      mark_nodered_managed "$(get_flows_hash)"
+    fi
+  fi
+
   if is_nodered_managed; then
     MANAGED_VERSION=$(get_managed_version)
     bashio::log.info "   Node-RED already managed by LibreCoach (version $MANAGED_VERSION)"
