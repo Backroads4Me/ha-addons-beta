@@ -44,6 +44,10 @@ If you already use Node-RED, LibreCoach will **PAUSE** to protect your work.
 To proceed, you must go to the **Configuration** tab and enable `Allow Node-RED Overwrite`.
 _See the [Documentation](https://github.com/backroads4me/ha-addons/blob/main/librecoach/DOCS.md) for full details._
 
+## Advanced: Discovering New Devices
+
+Have an unsupported RV device? LibreCoach includes a built-in CAN bus recording tool to help you learn its protocol and expand your system. Read the **[Discovering New Devices](https://librecoach.com/advanced-setup/discovering-devices/)** guide.
+
 ## Support
 
 For full configuration options, troubleshooting, and guides, please visit:

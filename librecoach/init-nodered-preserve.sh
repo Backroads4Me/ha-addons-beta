@@ -9,7 +9,7 @@
 set -e
 
 # Robust Suicide Check: Exit if LibreCoach is gone
-OWNER_SLUG="REPLACE_ME" # Injected by run.sh
+OWNER_SLUG="REPLACE_ME" # Injected by run.sh to handle both beta and prod
 SOURCE_DIR="/share/.librecoach"
 
 if [ ! -d "$SOURCE_DIR" ]; then

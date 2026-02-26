@@ -7,7 +7,7 @@ import can
 
 log = logging.getLogger("vehicle_bridge.can")
 
-# Fixed CAN/MQTT values (no longer user-configurable)
+# Fixed CAN/MQTT values for RV-C
 CAN_BITRATE = "250000"
 TOPIC_RAW = "can/raw"
 TOPIC_SEND = "can/send"
@@ -48,7 +48,7 @@ class CanBridge:
             self.mqtt.publish(self.topic_status, "no_interface", retain=True)
             return
 
-        # Initialize CAN interface (ported from can-mqtt-bridge run.sh)
+        # Initialize CAN interface
         try:
             await loop.run_in_executor(None, self._setup_interface)
         except Exception as exc:

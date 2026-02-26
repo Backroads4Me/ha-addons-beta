@@ -209,7 +209,11 @@ async def _monitor_addon_status(hass: HomeAssistant, slug: str):
                 headers=headers, timeout=timeout
             ) as resp:
                 if resp.status == 200:
-                    is_in_info = True
+                    data = await resp.json()
+                    # An add-on info endpoint can return 200 even if uninstalled (if it's in the store)
+                    # The definitive check is if it has a non-null "version"
+                    if data.get("data", {}).get("version"):
+                        is_in_info = True
 
             # Source 2: Check the full installed add-ons list
             is_in_list = False
