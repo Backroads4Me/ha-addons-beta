@@ -23,9 +23,9 @@ Before installing, ensure you have a supported CAN interface (e.g., Waveshare CA
 
 ### 1. Add the Repository
 
-[![Open your Home Assistant instance and show the add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBackroads4Me%2Fha-addons)
+[![Open your Home Assistant instance and show the add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBackroads4Me%2Fha-addons-beta)
 
-Or manually add: `https://github.com/backroads4me/ha-addons`
+Or manually add: `https://github.com/backroads4me/ha-addons-beta`
 
 ### 2. Install & Start
 
@@ -42,7 +42,7 @@ Find **LibreCoach** in the store and click **Install**, then **Start**.
 
 If you already use Node-RED, LibreCoach will **PAUSE** to protect your work.
 To proceed, you must go to the **Configuration** tab and enable `Allow Node-RED Overwrite`.
-_See the [Documentation](https://github.com/backroads4me/ha-addons/blob/main/librecoach/DOCS.md) for full details._
+_See the [Documentation](https://github.com/backroads4me/ha-addons-beta/blob/main/librecoach/DOCS.md) for full details._
 
 ## Advanced: Decoding Unknown Devices
 
@@ -73,6 +73,6 @@ Contributions to the LibreCoach add-on require signing the CLA. See [CONTRIBUTIN
 LibreCoach is free and open source.
 If it's useful to you, you can support its development in either of these ways:
 
-[![Star Repository](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20Repo-GitHub-lightgrey?logo=github&logoColor=black)](https://github.com/Backroads4Me/ha-addons)
+[![Star Repository](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20Repo-GitHub-lightgrey?logo=github&logoColor=black)](https://github.com/Backroads4Me/ha-addons-beta)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/Backroads4Me)
 [![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000000)](https://buymeacoffee.com/Backroads4Me)
