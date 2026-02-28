@@ -368,6 +368,28 @@ get_managed_preserve_mode() {
 # Ensure this addon starts on boot
 api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/null
 
+# Clean stale config keys left in the Supervisor's internal option store from previous releases.
+# The Supervisor generates /data/options.json for the addon (stripping unknown keys), but keeps
+# stale keys in its own store and warns about them at every boot. The only way to remove them
+# is to overwrite the Supervisor's store via its API with a full replacement of the options.
+# POST /addons/self/options with {"options": {...}} does a full replace — any keys not included
+# are dropped from the store. Reading the current valid options from /data/options.json and
+# posting them back effectively purges the stale keys.
+SELF_OPTIONS=$(api_call GET "/addons/self/info" | jq -r '.data.options // empty')
+STALE_KEYS='["ble_scan_interval","mqtt_host","mqtt_port","mqtt_topic_raw","mqtt_topic_send","mqtt_topic_status"]'
+if [ -n "$SELF_OPTIONS" ]; then
+  HAS_STALE=$(echo "$SELF_OPTIONS" | jq --argjson keys "$STALE_KEYS" '[.[$keys[]]] | map(select(. != null)) | length')
+  if [ "$HAS_STALE" -gt 0 ] 2>/dev/null; then
+    CLEANED=$(echo "$SELF_OPTIONS" | jq --argjson keys "$STALE_KEYS" 'delpaths([$keys[] | [.]])')
+    RESULT=$(api_call POST "/addons/self/options" "$(jq -n --argjson opts "$CLEANED" '{"options":$opts}')")
+    if echo "$RESULT" | jq -e '.result == "ok"' >/dev/null 2>&1; then
+      bashio::log.info "   Cleaned $HAS_STALE stale config keys from Supervisor store"
+    else
+      bashio::log.warning "   Failed to clean stale config keys: $RESULT"
+    fi
+  fi
+fi
+
 # ========================
 # Deployment
 # ========================
@@ -565,6 +587,14 @@ jq -n \
         addon_slug: $slug
     }' > /config/.librecoach-ble-config.json
 
+# Ensure the config file is excluded from git to protect credentials
+GITIGNORE="/config/.gitignore"
+GITIGNORE_ENTRY=".librecoach-ble-config.json"
+if [ ! -f "$GITIGNORE" ] || ! grep -qF "$GITIGNORE_ENTRY" "$GITIGNORE"; then
+    echo "$GITIGNORE_ENTRY" >> "$GITIGNORE"
+    bashio::log.info "   Added $GITIGNORE_ENTRY to /config/.gitignore"
+fi
+
 # Install/update integration files (only restart if code actually changed)
 NEEDS_HA_RESTART=false
 
@@ -641,6 +671,7 @@ bashio::log.info "Node-RED"
 
 CONFIRM_TAKEOVER=$(bashio::config 'confirm_nodered_takeover')
 NODERED_ALREADY_INSTALLED=false
+MIGRATION_DETECTED=false
 
 if is_installed "$SLUG_NODERED"; then
   bashio::log.info "   Node-RED is already installed."
@@ -674,6 +705,7 @@ if [ "$NODERED_ALREADY_INSTALLED" = "true" ]; then
     if [[ "$nr_init_check" == *"librecoach"* ]]; then
       bashio::log.info "   Migrating: previous LibreCoach version detected (init_commands present). Creating state file."
       mark_nodered_managed "$(get_flows_hash)"
+      MIGRATION_DETECTED=true
     fi
   fi
 
@@ -785,9 +817,14 @@ else
   fi
 fi
 
-# Check if flows file has changed (requiring a restart to pick up)
+# Check if flows need updating (requiring a restart to pick up)
 if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
-  if [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
+  PREVIOUS_VERSION=$(get_managed_version)
+  if [ -n "$PREVIOUS_VERSION" ] && [ "$PREVIOUS_VERSION" != "$ADDON_VERSION" ]; then
+    # Version changed — always restart to ensure init script runs with latest bundled flows
+    bashio::log.info "   Add-on version changed ($PREVIOUS_VERSION → $ADDON_VERSION). Restarting Node-RED."
+    NEEDS_RESTART=true
+  elif [ -n "$PREVIOUS_FLOWS_HASH" ] && [ "$PREVIOUS_FLOWS_HASH" != "$FLOWS_HASH" ]; then
     log_debug "Flow hash changed from $PREVIOUS_FLOWS_HASH to $FLOWS_HASH"
     NEEDS_RESTART=true
   fi
@@ -814,6 +851,14 @@ if [ "$PREVIOUS_PRESERVE_MODE" = "true" ] && [ "$PREVENT_FLOW_UPDATES" != "true"
   fi
 
   bashio::log.info "   Restarting Node-RED to restore standard flows."
+  NEEDS_RESTART=true
+fi
+
+# Force restart on migration from a previous LibreCoach installation (e.g., beta → production).
+# The migration path creates the state file with the current hash, making the hash comparison
+# see no change. But Node-RED's flows may be stale, so we must restart to run the init script.
+if [ "$MIGRATION_DETECTED" = "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
+  bashio::log.info "   Migration detected — restarting Node-RED to deploy bundled flows."
   NEEDS_RESTART=true
 fi
 
