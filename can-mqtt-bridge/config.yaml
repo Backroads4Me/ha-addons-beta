@@ -1,9 +1,8 @@
 # Copyright 2025-2026 Ted Lanham
 # Licensed under the MIT License
-# Add-on configuration file: config.yaml
 
 name: "CAN to MQTT Bridge"
-version: "1.0.5"
+version: "1.0.6"
 slug: "can-mqtt-bridge"
 description: "Initializes CAN interface and provides a bidirectional CAN-MQTT bridge"
 url: "https://github.com/Backroads4Me/ha-addons-beta"
