@@ -44,6 +44,8 @@ DEBUG_LOGGING=$(bashio::config 'debug_logging')
 VICTRON_ENABLED=$(bashio::config 'victron_enabled')
 BETA_ENABLED=$(bashio::config 'beta_enabled')
 MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
+GEO_ENABLED=$(bashio::config 'geo_enabled')
+RVC_TIME_SYNC_ENABLED=$(bashio::config 'rvc_time_sync_enabled')
 
 # ======================== 
 # Orchestrator Helpers
@@ -441,6 +443,10 @@ fi
 OWNER_SLUG=$(api_call GET "/addons/self/info" | jq -r '.data.slug // empty')
 sed -i "s/REPLACE_ME/$OWNER_SLUG/g" "$PROJECT_PATH/init-nodered.sh"
 
+# Inject MQTT credentials into settings.js
+sed -i "s/REPLACE_MQTT_USER/$MQTT_USER/g" "$PROJECT_PATH/data/settings.js"
+sed -i "s/REPLACE_MQTT_PASS/$MQTT_PASS/g" "$PROJECT_PATH/data/settings.js"
+
 # Ensure permissions are open (Node-RED runs as non-root)
 chmod -R 755 "$PROJECT_PATH"
 bashio::log.info "   Project files deployed"
@@ -577,6 +583,8 @@ mqtt_pub() { mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$
 mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
 mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
 mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
+mqtt_pub -t "librecoach/config/geo_enabled" -m "$GEO_ENABLED"
+mqtt_pub -t "librecoach/config/rvc_time_sync_enabled" -m "$RVC_TIME_SYNC_ENABLED"
 bashio::log.info "   Published config toggles to MQTT"
 
 # ========================
@@ -914,6 +922,8 @@ if wait_for_nodered_api; then
     mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
     mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
     mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
+    mqtt_pub -t "librecoach/config/geo_enabled" -m "$GEO_ENABLED"
+    mqtt_pub -t "librecoach/config/rvc_time_sync_enabled" -m "$RVC_TIME_SYNC_ENABLED"
     bashio::log.info "   Re-published config toggles to MQTT"
 else
     bashio::log.warning "   ⚠️  Node-RED API did not respond. It may still be starting."
