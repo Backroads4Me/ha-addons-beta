@@ -44,8 +44,26 @@ DEBUG_LOGGING=$(bashio::config 'debug_logging')
 VICTRON_ENABLED=$(bashio::config 'victron_enabled')
 BETA_ENABLED=$(bashio::config 'beta_enabled')
 MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
+HUGHES_ENABLED=$(bashio::config 'hughes_enabled')
 GEO_ENABLED=$(bashio::config 'geo_enabled')
 RVC_TIME_SYNC_ENABLED=$(bashio::config 'rvc_time_sync_enabled')
+
+# The Supervisor option store is the source for several option updates below;
+# corrupt JSON here must abort rather than push garbage back to the Supervisor.
+if [ -f /data/options.json ] && ! jq -e . /data/options.json >/dev/null 2>&1; then
+  bashio::log.fatal "❌ /data/options.json contains invalid JSON. Aborting startup."
+  exit 1
+fi
+
+# MQTT credentials are embedded in Mosquitto options, flows_cred.json, and
+# settings.js. Newlines cannot be represented safely in all of those targets.
+case "$MQTT_USER$MQTT_PASS" in
+  *$'\n'*|*$'\r'*)
+    bashio::log.fatal "❌ MQTT username/password must not contain newline characters."
+    bashio::log.fatal "   Fix the credentials in the LibreCoach Configuration tab and restart."
+    exit 1
+    ;;
+esac
 
 # ======================== 
 # Orchestrator Helpers
@@ -54,6 +72,18 @@ log_debug() {
   if [ "$DEBUG_LOGGING" = "true" ]; then
     # Log to stderr to avoid polluting stdout (which is captured by $())
     echo "[DEBUG] $1" >&2
+  fi
+}
+
+# Run a command that must succeed. On failure, log a clear fatal message and
+# abort startup so we never continue with partial deployment state.
+run_required() {
+  local msg=$1
+  shift
+  if ! "$@"; then
+    bashio::log.fatal "❌ $msg"
+    bashio::log.fatal "   Command: $*"
+    exit 1
   fi
 }
 
@@ -273,13 +303,15 @@ wait_for_mqtt() {
 
   bashio::log.info "   Waiting for MQTT broker at $host:$port"
 
-  local auth_args=""
-  [ -n "$user" ] && auth_args="$auth_args -u $user"
-  [ -n "$pass" ] && auth_args="$auth_args -P $pass"
+  # Array (not a string) so usernames/passwords containing spaces or shell
+  # metacharacters survive word splitting intact.
+  local auth_args=()
+  [ -n "$user" ] && auth_args+=(-u "$user")
+  [ -n "$pass" ] && auth_args+=(-P "$pass")
 
   local retries=30
   while [ $retries -gt 0 ]; do
-    if timeout 2 mosquitto_pub -h "$host" -p "$port" $auth_args -t "librecoach/test" -m "test" -q 0 2>/dev/null; then
+    if timeout 2 mosquitto_pub -h "$host" -p "$port" "${auth_args[@]}" -t "librecoach/test" -m "test" -q 0 2>/dev/null; then
       bashio::log.info "   MQTT broker is ready"
       return 0
     fi
@@ -293,30 +325,47 @@ wait_for_mqtt() {
 
 wait_for_nodered_api() {
   bashio::log.info "   Waiting for Node-RED API to be ready"
-  
+
   local host="a0d7b954-nodered"
   local port=1880
   local retries=60
-  
+  local url="http://${host}:${port}/"
+  local port_open=false
+
+  # Phase 1 (prerequisite only): wait for the HTTP port to open.
   while [ $retries -gt 0 ]; do
-    local url="http://${host}:${port}/"
     log_debug "Checking for Node-RED API at $url"
-    
-    # Check if the port is open, without requiring auth yet.
     # A 401 error will still return 0 here, which is what we want.
     if curl -sS -m 3 "$url" >/dev/null 2>&1; then
-      bashio::log.info "   Node-RED API port is open. Waiting for auth to initialize"
-      # Give Node-RED a moment to initialize the user auth system
-      sleep 5
-      return 0
+      port_open=true
+      break
     fi
-
     sleep 3
     ((retries--))
   done
 
-  bashio::log.error "   ❌ Node-RED API did not become available at $url"
-  return 1
+  if [ "$port_open" != "true" ]; then
+    bashio::log.error "   ❌ Node-RED timeout: HTTP port never opened at $url"
+    return 1
+  fi
+
+  # Phase 2: an open port only means the runtime is up — flows may still be
+  # loading. Wait for the retained readiness topic that the LibreCoach flows
+  # publish after loading and registering their MQTT subscriptions.
+  bashio::log.info "   Node-RED port is open. Waiting for LibreCoach flows to report ready"
+  mqtt_auth_args
+  if timeout 90 mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" "${MQTT_AUTH_ARGS[@]}" \
+       -t "librecoach/nodered/ready" -C 1 >/dev/null 2>&1; then
+    bashio::log.info "   LibreCoach flows are ready"
+    return 0
+  fi
+
+  # Intentionally non-fatal: flows from releases that predate the readiness
+  # topic never publish it. Distinguish this timeout from a closed port above.
+  bashio::log.warning "   ⚠️  Node-RED port is open but no readiness message on librecoach/nodered/ready after 90s"
+  bashio::log.warning "      (Flows may still be loading, or this flow version may not publish readiness yet.)"
+  sleep 5
+  return 0
 }
 
 
@@ -358,8 +407,8 @@ get_managed_version() {
 }
 
 get_flows_hash() {
-  if [ -f "/opt/librecoach-project/flows.json" ]; then
-    md5sum "/opt/librecoach-project/flows.json" | cut -d' ' -f1
+  if [ -f "$BUNDLED_PROJECT/artifact/flows.json" ]; then
+    md5sum "$BUNDLED_PROJECT/artifact/flows.json" | cut -d' ' -f1
   else
     echo "unknown"
   fi
@@ -381,8 +430,11 @@ get_managed_preserve_mode() {
   jq -r '.prevent_flow_updates // ""' "$STATE_FILE"
 }
 
-# Ensure this addon starts on boot
-api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/null
+# Ensure this addon starts on boot.
+# The self-watchdog is intentionally NOT enabled here — if setup fails or pauses
+# (e.g., waiting for the MQTT integration), an enabled watchdog turns that into a
+# Supervisor restart crash loop. It is enabled at the end of a successful setup.
+api_call POST "/addons/self/options" '{"boot":"auto"}' > /dev/null
 
 # Clean stale config keys left in the Supervisor's internal option store from previous releases.
 # The Supervisor generates /data/options.json for the addon (stripping unknown keys), but keeps
@@ -391,10 +443,12 @@ api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' > /dev/nu
 # POST /addons/self/options with {"options": {...}} does a full replace — any keys not included
 # are dropped from the store. Reading the current valid options from /data/options.json and
 # posting them back effectively purges the stale keys.
-SELF_OPTIONS=$(api_call GET "/addons/self/info" | jq -r '.data.options // empty')
+# Intentionally non-fatal: stale-key cleanup is cosmetic; a flaky Supervisor
+# response here must not abort startup.
+SELF_OPTIONS=$(api_call GET "/addons/self/info" | jq -r '.data.options // empty' 2>/dev/null || true)
 STALE_KEYS='["ble_scan_interval","mqtt_host","mqtt_port","mqtt_topic_raw","mqtt_topic_send","mqtt_topic_status"]'
 if [ -n "$SELF_OPTIONS" ]; then
-  HAS_STALE=$(echo "$SELF_OPTIONS" | jq --argjson keys "$STALE_KEYS" '[.[$keys[]]] | map(select(. != null)) | length')
+  HAS_STALE=$(echo "$SELF_OPTIONS" | jq --argjson keys "$STALE_KEYS" '[.[$keys[]]] | map(select(. != null)) | length' 2>/dev/null || echo 0)
   if [ "$HAS_STALE" -gt 0 ] 2>/dev/null; then
     # Use /data/options.json as the POST source — it's the authoritative merged file generated
     # at startup and already strips unknown schema keys. Using the API response risks posting
@@ -414,8 +468,25 @@ fi
 # ========================
 bashio::log.info "Deploying Files"
 
+# A missing or incomplete bundled project means a broken image — abort with a
+# clear message instead of deploying a partial tree.
+if [ ! -d "$BUNDLED_PROJECT" ] || [ ! -f "$BUNDLED_PROJECT/artifact/flows.json" ]; then
+    bashio::log.fatal "❌ Bundled Node-RED project is missing or incomplete at $BUNDLED_PROJECT"
+    bashio::log.fatal "   This add-on image is corrupt. Reinstall or update LibreCoach."
+    exit 1
+fi
+
 # Ensure directory exists
 mkdir -p "$PROJECT_PATH"
+
+# One-time migration: older releases stored the Node-RED credential_secret
+# backup inside $PROJECT_PATH, where `rsync --delete` destroyed it on every
+# start. Move it to add-on private storage before the rsync below.
+if [ -f "$PROJECT_PATH/.backup_credential_secret" ] && [ ! -f /data/.backup_credential_secret ]; then
+    bashio::log.info "   Migrating credential_secret backup to /data/.backup_credential_secret"
+    cp "$PROJECT_PATH/.backup_credential_secret" /data/.backup_credential_secret
+    chmod 600 /data/.backup_credential_secret
+fi
 
 # Always deploy/update project files from bundled version
 if [ "$(ls -A $PROJECT_PATH)" ]; then
@@ -424,8 +495,10 @@ else
     bashio::log.info "   Deploying bundled project to $PROJECT_PATH"
 fi
 
-# Deploy project files
-rsync -a --delete "$BUNDLED_PROJECT/" "$PROJECT_PATH/"
+# Deploy project files. The --exclude keeps any legacy credential_secret backup
+# alive at the old path during the migration transition.
+run_required "Failed to deploy bundled Node-RED project to $PROJECT_PATH" \
+    rsync -a --delete --exclude=.backup_credential_secret "$BUNDLED_PROJECT/" "$PROJECT_PATH/"
 
 # Select the appropriate init script based on configuration
 PREVENT_FLOW_UPDATES=$(bashio::config 'prevent_flow_updates')
@@ -443,9 +516,96 @@ fi
 OWNER_SLUG=$(api_call GET "/addons/self/info" | jq -r '.data.slug // empty')
 sed -i "s/REPLACE_ME/$OWNER_SLUG/g" "$PROJECT_PATH/init-nodered.sh"
 
-# Inject MQTT credentials into settings.js
-sed -i "s|REPLACE_MQTT_USER|$MQTT_USER|g" "$PROJECT_PATH/data/settings.js"
-sed -i "s|REPLACE_MQTT_PASS|$MQTT_PASS|g" "$PROJECT_PATH/data/settings.js"
+# Inject MQTT credentials into settings.js (if it contains placeholders).
+# Uses literal string replacement in Python, not sed — credentials containing
+# |, &, \, quotes, $, or spaces must not corrupt the file. Quoted placeholders
+# are replaced with a JSON-encoded string so the result is always valid JS.
+# Newlines in credentials were already rejected at startup.
+_SETTINGS_JS="$PROJECT_PATH/data/settings.js"
+if [ -f "$_SETTINGS_JS" ] && grep -q "REPLACE_MQTT_" "$_SETTINGS_JS"; then
+    if LC_MQTT_USER="$MQTT_USER" LC_MQTT_PASS="$MQTT_PASS" \
+       python3 - "$_SETTINGS_JS" <<'PYEOF'
+import json, os, sys
+
+path = sys.argv[1]
+user = os.environ["LC_MQTT_USER"]
+password = os.environ["LC_MQTT_PASS"]
+
+with open(path, encoding="utf-8") as f:
+    text = f.read()
+
+# Quoted placeholders become JSON-encoded strings (valid JS string literals);
+# bare placeholders get the raw value.
+for quoted, bare, value in (
+    ('"REPLACE_MQTT_USER"', "REPLACE_MQTT_USER", user),
+    ('"REPLACE_MQTT_PASS"', "REPLACE_MQTT_PASS", password),
+):
+    text = text.replace(quoted, json.dumps(value)).replace(bare, value)
+
+tmp = path + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    f.write(text)
+os.replace(tmp, path)
+PYEOF
+    then
+        bashio::log.info "   MQTT credentials injected into settings.js"
+    else
+        bashio::log.fatal "❌ Failed to inject MQTT credentials into settings.js"
+        exit 1
+    fi
+fi
+unset _SETTINGS_JS
+
+# Inject actual MQTT credentials into flows_cred.json.
+# The bundled file uses ${MQTT_USER}/${MQTT_PASS} placeholders which require Node-RED
+# env-var resolution at runtime — this step is fragile if credentialSecret doesn't
+# match. Instead, decrypt the file here, substitute real values, and re-encrypt so
+# Node-RED receives the credentials directly without any env-var dependency.
+# Every step is explicitly checked: a failed decrypt, substitute, or re-encrypt
+# aborts startup with a clear message. The original file is only replaced after
+# the new ciphertext is fully written (temp file + atomic move), so a forced
+# openssl failure can never leave a corrupted flows_cred.json behind.
+_FLOWS_CRED="$PROJECT_PATH/flows_cred.json"
+if [ -f "$_FLOWS_CRED" ] && command -v openssl >/dev/null 2>&1; then
+    _enc=$(jq -r '."$" // empty' "$_FLOWS_CRED" 2>/dev/null || true)
+    if [ -z "$_enc" ]; then
+        # Intentionally non-fatal: a flows_cred.json without an encrypted "$"
+        # field simply has nothing to inject.
+        bashio::log.warning "   ⚠️  flows_cred.json has no encrypted payload — skipping credential injection"
+    else
+        _key=$(echo -n "librecoach" | openssl dgst -sha256 | awk '{print $2}')
+        _iv="${_enc:0:32}"
+        _ct="${_enc:32}"
+        if ! _plain=$(echo "$_ct" | base64 -d | \
+            openssl enc -d -aes-256-ctr -K "$_key" -iv "$_iv" -nosalt); then
+            bashio::log.fatal "❌ Failed to decrypt flows_cred.json. Node-RED would start without working MQTT credentials."
+            exit 1
+        fi
+        if ! _new=$(echo "$_plain" | python3 -c "
+import sys,json
+c=json.loads(sys.stdin.read()); u,p=sys.argv[1],sys.argv[2]
+for v in c.values():
+    if isinstance(v,dict):
+        if v.get('user')=='\${MQTT_USER}': v['user']=u
+        if v.get('password')=='\${MQTT_PASS}': v['password']=p
+print(json.dumps(c))
+" "$MQTT_USER" "$MQTT_PASS"); then
+            bashio::log.fatal "❌ Failed to substitute MQTT credentials in flows_cred.json"
+            exit 1
+        fi
+        _new_iv=$(openssl rand -hex 16)
+        if ! _new_enc=$(echo -n "$_new" | \
+            openssl enc -aes-256-ctr -K "$_key" -iv "$_new_iv" -nosalt | \
+            base64 -w 0) || [ -z "$_new_enc" ]; then
+            bashio::log.fatal "❌ Failed to re-encrypt flows_cred.json"
+            exit 1
+        fi
+        printf '{\n    "$": "%s%s"\n}\n' "$_new_iv" "$_new_enc" > "${_FLOWS_CRED}.tmp"
+        mv "${_FLOWS_CRED}.tmp" "$_FLOWS_CRED"
+        bashio::log.info "   MQTT credentials injected into flows_cred.json"
+    fi
+fi
+unset _FLOWS_CRED _enc _key _iv _ct _plain _new _new_iv _new_enc
 
 # Ensure permissions are open (Node-RED runs as non-root)
 chmod -R 755 "$PROJECT_PATH"
@@ -559,9 +719,25 @@ _See LibreCoach addon logs for more details_" \
   bashio::log.error ""
   bashio::log.error "   Check the notification in Home Assistant UI (🔔 bell icon)"
   bashio::log.error ""
-  bashio::log.fatal "   ⏸️  Installation paused. Complete MQTT setup and start LibreCoach."
-  bashio::log.fatal ""
-  exit 1
+  bashio::log.warning "   ⏳ Waiting for MQTT integration. Setup resumes automatically once it is configured."
+  bashio::log.warning ""
+
+  # Keep the process alive and poll instead of exiting — exiting here used to
+  # trigger a Supervisor watchdog restart crash loop. The self-watchdog is not
+  # enabled until setup completes, but staying alive also lets setup resume
+  # without user intervention the moment the integration appears.
+  _mqtt_wait_minutes=0
+  while true; do
+    sleep 60
+    if api_call GET "/core/api/components" | jq -e 'if type == "array" then index("mqtt") else false end' >/dev/null 2>&1; then
+      bashio::log.info "   MQTT integration detected. Resuming setup."
+      break
+    fi
+    _mqtt_wait_minutes=$((_mqtt_wait_minutes + 1))
+    if [ $((_mqtt_wait_minutes % 10)) -eq 0 ]; then
+      bashio::log.warning "   ⏳ Still waiting for MQTT integration (${_mqtt_wait_minutes} minutes). See setup steps above."
+    fi
+  done
 fi
 
 # MQTT is configured - dismiss any previous setup notifications
@@ -572,19 +748,40 @@ bashio::log.info "   MQTT integration is configured"
 SLUG_CAN_BRIDGE="3b081c96_can-mqtt-bridge"
 if is_installed "$SLUG_CAN_BRIDGE"; then
     bashio::log.info "Migrating from standalone CAN-MQTT Bridge"
-    is_running "$SLUG_CAN_BRIDGE" && api_call POST "/addons/$SLUG_CAN_BRIDGE/stop" "" >/dev/null 2>&1
+    # Intentionally non-fatal: legacy bridge may already be stopped.
+    if is_running "$SLUG_CAN_BRIDGE"; then
+      api_call POST "/addons/$SLUG_CAN_BRIDGE/stop" "" >/dev/null 2>&1
+    fi
     api_call POST "/addons/$SLUG_CAN_BRIDGE/options" '{"boot":"manual","watchdog":false}' >/dev/null 2>&1
     bashio::log.info "CAN-MQTT Bridge disabled. The vehicle_bridge now handles CAN."
     bashio::log.info "You may uninstall can-mqtt-bridge from Settings → Add-ons."
 fi
 
 # Publish config toggles as retained MQTT messages for Node-RED
-mqtt_pub() { mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" -r -q 1 "$@"; }
-mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
-mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
-mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
-mqtt_pub -t "librecoach/config/geo_enabled" -m "$GEO_ENABLED"
-mqtt_pub -t "librecoach/config/rvc_time_sync_enabled" -m "$RVC_TIME_SYNC_ENABLED"
+# Auth flags built as an array so credentials with spaces/metacharacters work,
+# and so no-auth mode (empty user/pass) cleanly omits -u/-P.
+mqtt_auth_args() {
+  MQTT_AUTH_ARGS=()
+  [ -n "${MQTT_USER:-}" ] && MQTT_AUTH_ARGS+=(-u "$MQTT_USER")
+  [ -n "${MQTT_PASS:-}" ] && MQTT_AUTH_ARGS+=(-P "$MQTT_PASS")
+}
+
+mqtt_pub() {
+  mqtt_auth_args
+  mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" "${MQTT_AUTH_ARGS[@]}" -r -q 1 "$@"
+}
+
+# Publish a retained config toggle; failures are fatal because Node-RED flows
+# depend on these retained topics to configure themselves.
+publish_config_toggle() {
+  run_required "Failed to publish retained config topic $1" mqtt_pub -t "$1" -m "$2"
+}
+publish_config_toggle "librecoach/config/victron_enabled" "$VICTRON_ENABLED"
+publish_config_toggle "librecoach/config/beta_enabled" "$BETA_ENABLED"
+publish_config_toggle "librecoach/config/microair_enabled" "$MICROAIR_ENABLED"
+publish_config_toggle "librecoach/config/hughes_enabled" "$HUGHES_ENABLED"
+publish_config_toggle "librecoach/config/geo_enabled" "$GEO_ENABLED"
+publish_config_toggle "librecoach/config/rvc_time_sync_enabled" "$RVC_TIME_SYNC_ENABLED"
 bashio::log.info "   Published config toggles to MQTT"
 
 # ========================
@@ -601,17 +798,23 @@ INTEGRATION_DST="/config/custom_components/librecoach_ble"
 MICROAIR_PASSWORD=$(bashio::config 'microair_password')
 MICROAIR_EMAIL=$(bashio::config 'microair_email')
 
-jq -n \
+if ! jq -n \
     --argjson enabled "$MICROAIR_ENABLED" \
+    --argjson hughes_enabled "$HUGHES_ENABLED" \
     --arg password "$MICROAIR_PASSWORD" \
     --arg email "$MICROAIR_EMAIL" \
     --arg slug "$OWNER_SLUG" \
     '{
         microair_enabled: $enabled,
+        hughes_enabled: $hughes_enabled,
         microair_password: $password,
         microair_email: $email,
         addon_slug: $slug
-    }' > /config/.librecoach-ble-config.json
+    }' > /config/.librecoach-ble-config.json.tmp; then
+    bashio::log.fatal "❌ Failed to generate BLE integration config (.librecoach-ble-config.json)"
+    exit 1
+fi
+mv /config/.librecoach-ble-config.json.tmp /config/.librecoach-ble-config.json
 
 # Ensure the config file is excluded from git to protect credentials
 GITIGNORE="/config/.gitignore"
@@ -806,12 +1009,19 @@ LIBRECOACH_SECRET="librecoach"
 
 NEEDS_RESTART=false
 
-# Backup existing credential_secret if it exists and differs from ours
+# Backup existing credential_secret if it exists and differs from ours.
+# Stored in add-on private /data (never touched by project rsync) and written
+# only once — the first backup is the user's original pre-LibreCoach secret
+# and must never be overwritten by later restarts.
 if [ -n "$EXISTING_SECRET" ] && [ "$EXISTING_SECRET" != "$LIBRECOACH_SECRET" ]; then
-  BACKUP_FILE="$PROJECT_PATH/.backup_credential_secret"
-  bashio::log.info "   Backing up existing Node-RED credential_secret to $BACKUP_FILE"
-  echo "$EXISTING_SECRET" > "$BACKUP_FILE"
-  chmod 600 "$BACKUP_FILE"
+  BACKUP_FILE="/data/.backup_credential_secret"
+  if [ -f "$BACKUP_FILE" ]; then
+    bashio::log.info "   Node-RED credential_secret backup already exists at $BACKUP_FILE (keeping original)"
+  else
+    bashio::log.info "   Backing up existing Node-RED credential_secret to $BACKUP_FILE"
+    echo "$EXISTING_SECRET" > "$BACKUP_FILE"
+    chmod 600 "$BACKUP_FILE"
+  fi
 fi
 
 if [ -z "$EXISTING_SECRET" ] || [ "$EXISTING_SECRET" != "$LIBRECOACH_SECRET" ]; then
@@ -892,8 +1102,18 @@ elif [ "$MIGRATION_DETECTED" = "true" ] && [ "$PREVENT_FLOW_UPDATES" = "true" ];
     bashio::log.info "   Migration detected — skipping Node-RED restart (preserve mode active)."
 fi
 
+# Clear any stale retained readiness flag before a (re)start so
+# wait_for_nodered_api can't be satisfied by a message from a previous
+# Node-RED run. If Node-RED keeps running untouched, its retained readiness
+# message is still valid and must be left alone.
+# Intentionally non-fatal: the topic may simply not exist yet.
+clear_nodered_ready_flag() {
+  mqtt_pub -t "librecoach/nodered/ready" -n 2>/dev/null || true
+}
+
 # Ensure Node-RED starts/restarts to apply init commands
 if [ "$NEEDS_RESTART" = "true" ]; then
+  clear_nodered_ready_flag
   if is_running "$SLUG_NODERED"; then
     bashio::log.info "   Restarting Node-RED to apply new configuration"
     restart_addon "$SLUG_NODERED" || exit 1
@@ -910,6 +1130,7 @@ if [ "$NEEDS_RESTART" = "true" ]; then
   fi
 else
   if ! is_running "$SLUG_NODERED"; then
+    clear_nodered_ready_flag
     start_addon "$SLUG_NODERED" || exit 1
   fi
 fi
@@ -919,11 +1140,12 @@ fi
 if wait_for_nodered_api; then
     # Re-publish config toggles now that Node-RED is online.
     # The initial publish (retained) may be missed if the broker cycled during startup.
-    mqtt_pub -t "librecoach/config/victron_enabled" -m "$VICTRON_ENABLED"
-    mqtt_pub -t "librecoach/config/beta_enabled" -m "$BETA_ENABLED"
-    mqtt_pub -t "librecoach/config/microair_enabled" -m "$MICROAIR_ENABLED"
-    mqtt_pub -t "librecoach/config/geo_enabled" -m "$GEO_ENABLED"
-    mqtt_pub -t "librecoach/config/rvc_time_sync_enabled" -m "$RVC_TIME_SYNC_ENABLED"
+    publish_config_toggle "librecoach/config/victron_enabled" "$VICTRON_ENABLED"
+    publish_config_toggle "librecoach/config/beta_enabled" "$BETA_ENABLED"
+    publish_config_toggle "librecoach/config/microair_enabled" "$MICROAIR_ENABLED"
+    publish_config_toggle "librecoach/config/hughes_enabled" "$HUGHES_ENABLED"
+    publish_config_toggle "librecoach/config/geo_enabled" "$GEO_ENABLED"
+    publish_config_toggle "librecoach/config/rvc_time_sync_enabled" "$RVC_TIME_SYNC_ENABLED"
     bashio::log.info "   Re-published config toggles to MQTT"
 else
     bashio::log.warning "   ⚠️  Node-RED API did not respond. It may still be starting."
@@ -953,14 +1175,34 @@ bashio::log.info "║  All components installed successfully!                   
 bashio::log.info "║  Visit https://LibreCoach.com for more information         ║"
 bashio::log.info "╚════════════════════════════════════════════════════════════╝"
 
+# Setup succeeded — only now is the self-watchdog safe to enable. Enabling it
+# earlier turns any setup failure or wait state into a restart crash loop.
+# Intentionally non-fatal: a failed watchdog update must not fail a good setup.
+api_call POST "/addons/self/options" '{"boot":"auto","watchdog":true}' >/dev/null 2>&1 || \
+    bashio::log.warning "   ⚠️  Could not enable self-watchdog"
+
 } # end run_orchestrator
 
-# Run orchestrator, capture result
 # As a cont-init.d script, this runs once at startup before s6 services start.
 # The vehicle_bridge Python process is managed by s6 as a longrun service.
-if run_orchestrator; then
-    bashio::log.info "Orchestrator complete. Vehicle bridge starting via s6."
-else
-    bashio::log.warning "Orchestrator encountered errors. Check logs above."
-    bashio::log.warning "Fix the issue, then restart the addon from Settings → Add-ons → LibreCoach."
-fi
+#
+# run_orchestrator must NOT be invoked inside an `if` condition — doing so
+# disables `set -e` for its entire body, letting failures continue with
+# partial deployment state. The EXIT trap logs the outcome either way and the
+# script exits with the orchestrator's real exit code.
+on_exit() {
+    local rc=$?
+    if [ $rc -eq 0 ]; then
+        bashio::log.info "Orchestrator complete. Vehicle bridge starting via s6."
+    else
+        bashio::log.error "Orchestrator failed (exit code $rc). Startup aborted — see errors above."
+        bashio::log.error "Fix the issue, then restart the addon from Settings → Add-ons → LibreCoach."
+    fi
+}
+
+main() {
+    run_orchestrator
+}
+
+trap on_exit EXIT
+main

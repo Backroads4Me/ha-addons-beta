@@ -1,0 +1,193 @@
+"""Acceptance tests for the BLE bridge refactor (B-1, B-2, B-4, B-5).
+
+These run against fakes for Home Assistant and bleak (see conftest.py).
+"""
+import asyncio
+import json
+
+import conftest  # registers fakes; exposes recorders
+
+from librecoach_ble.bridge import BleBridgeManager
+from librecoach_ble.devices.base import BleDeviceHandler, StateMessage, AuthenticationError
+from librecoach_ble.devices.microair import MicroAirHandler
+from librecoach_ble import const
+
+
+def run(coro):
+    return asyncio.new_event_loop().run_until_complete(coro)
+
+
+class FakeHass:
+    def async_create_task(self, coro):
+        coro.close()  # don't actually run the poll loop in unit tests
+        return None
+
+    async def async_add_executor_job(self, func, *args):
+        return func(*args)
+
+
+# --- B-1: a single advertisement callback is registered regardless of handler count ---
+
+def test_b1_single_callback_one_handler(monkeypatch):
+    conftest.reset_recorders()
+    import librecoach_ble.bridge as bridge_mod
+    monkeypatch.setattr(bridge_mod, "DEVICE_HANDLERS", [MicroAirHandler])
+
+    mgr = BleBridgeManager(FakeHass(), {}, {"microair"})
+    run(mgr.start())
+
+    assert len(conftest.REGISTERED_CALLBACKS) == 1
+
+
+def test_b1_single_callback_two_handlers(monkeypatch):
+    conftest.reset_recorders()
+
+    class FakeHughes(MicroAirHandler):
+        @staticmethod
+        def device_type():
+            return "hughes"
+
+        @staticmethod
+        def match_name(name):
+            return name.startswith("Hughes")
+
+    import librecoach_ble.bridge as bridge_mod
+    monkeypatch.setattr(bridge_mod, "DEVICE_HANDLERS", [MicroAirHandler, FakeHughes])
+
+    mgr = BleBridgeManager(FakeHass(), {}, {"microair", "hughes"})
+    run(mgr.start())
+
+    # Still exactly one callback even with two handlers registered.
+    assert len(conftest.REGISTERED_CALLBACKS) == 1
+
+
+# --- B-2: handler owns topic construction; bridge stays generic ---
+
+def test_b2_microair_topics_unchanged():
+    h = MicroAirHandler("AA:BB:CC:DD:EE:FF", {})
+    parsed = {
+        "zones": {0: {"mode": "cool", "cool_sp": 72}},
+        "zone_configs": {0: {"MAV": 1}},
+    }
+    msgs = h.state_messages(parsed)
+    topics = [m.topic for m in msgs]
+    assert "librecoach/ble/microair/aa:bb:cc:dd:ee:ff/state" in [t.lower() for t in topics]
+    cfg = [m for m in msgs if m.topic.endswith("/zone/0/config")]
+    assert len(cfg) == 1 and cfg[0].retain is True
+    # state payload carries the zone number, not retained
+    state = [m for m in msgs if m.topic.endswith("/state")][0]
+    assert json.loads(state.payload)["zone"] == 0
+    assert state.retain is False
+
+
+def test_b2_nonnumeric_zone_keys_do_not_crash():
+    h = MicroAirHandler("aa:bb", {})
+    parsed = {"zones": {"weird": {"mode": "off"}, 1: {"mode": "cool"}},
+              "zone_configs": {1: {"MAV": 0}}}
+    msgs = h.state_messages(parsed)  # must not raise
+    # the non-numeric key still publishes a state message but no config
+    assert any(m.topic.endswith("/state") for m in msgs)
+
+
+def test_b2_fake_nonzoned_handler_can_publish():
+    conftest.reset_recorders()
+
+    class FakeNonZoned(BleDeviceHandler):
+        def __init__(self, address, config):
+            self.address = address
+
+        @staticmethod
+        def device_type():
+            return "fakedev"
+
+        @staticmethod
+        def match_name(name):
+            return name.startswith("Fake")
+
+        async def authenticate(self, client):
+            return True
+
+        async def poll(self, client):
+            return {"watts": 1200}
+
+        async def handle_command(self, client, command):
+            return True
+
+        def parse_status(self, raw):
+            return raw
+
+        def state_messages(self, parsed):
+            return [StateMessage(
+                f"librecoach/ble/fakedev/{self.address}/state",
+                json.dumps(parsed),
+                retain=False,
+            )]
+
+    mgr = BleBridgeManager(FakeHass(), {})
+    handler = FakeNonZoned("11:22", {})
+    run(mgr._publish_messages(handler, {"watts": 1200}))
+
+    assert conftest.PUBLISHED[0]["topic"] == "librecoach/ble/fakedev/11:22/state"
+    assert json.loads(conftest.PUBLISHED[0]["payload"]) == {"watts": 1200}
+
+
+# --- B-4: backoff schedule ---
+
+def test_b4_backoff_progression():
+    mgr = BleBridgeManager(FakeHass(), {})
+    entry = {"failure_count": 0}
+    assert mgr._next_delay(entry) == const.BLE_POLL_INTERVAL
+    seen = []
+    for fc in range(1, 8):
+        entry["failure_count"] = fc
+        seen.append(mgr._next_delay(entry))
+    assert seen[:4] == const.BLE_BACKOFF_SCHEDULE
+    # caps at the last value
+    assert seen[-1] == const.BLE_BACKOFF_SCHEDULE[-1]
+
+
+# --- B-4/B-5: offline published once on transition; auth distinct from connectivity ---
+
+def test_b4_offline_published_once_on_transition():
+    conftest.reset_recorders()
+    mgr = BleBridgeManager(FakeHass(), {})
+    addr = "aa:bb"
+    mgr._active_devices[addr] = {
+        "failure_count": 0, "availability": None, "last_error": const.ERROR_NONE,
+    }
+    # Drive several connectivity failures; offline should appear exactly once.
+    for _ in range(6):
+        run(mgr._on_poll_failure("microair", addr, Exception("boom"), const.ERROR_CONNECTIVITY))
+    offline = [p for p in conftest.PUBLISHED
+               if p["topic"].endswith("/available") and p["payload"] == const.PAYLOAD_OFFLINE]
+    assert len(offline) == 1
+
+
+def test_b5_auth_failure_marks_offline_immediately_and_distinctly():
+    conftest.reset_recorders()
+    mgr = BleBridgeManager(FakeHass(), {})
+    addr = "aa:bb"
+    mgr._active_devices[addr] = {
+        "failure_count": 0, "availability": None, "last_error": const.ERROR_NONE,
+    }
+    run(mgr._on_poll_failure("microair", addr, AuthenticationError("nope"), const.ERROR_AUTH_FAILED))
+    # one failure is enough for auth
+    offline = [p for p in conftest.PUBLISHED
+               if p["topic"].endswith("/available") and p["payload"] == const.PAYLOAD_OFFLINE]
+    assert len(offline) == 1
+    last_err = [p for p in conftest.PUBLISHED if p["topic"].endswith("/last_error")][-1]
+    assert last_err["payload"] == const.ERROR_AUTH_FAILED
+
+
+def test_b4_recovery_publishes_online_on_transition():
+    conftest.reset_recorders()
+    mgr = BleBridgeManager(FakeHass(), {})
+    addr = "aa:bb"
+    mgr._active_devices[addr] = {
+        "failure_count": 5, "availability": const.PAYLOAD_OFFLINE, "last_error": const.ERROR_CONNECTIVITY,
+    }
+    run(mgr._on_poll_success("microair", addr))
+    online = [p for p in conftest.PUBLISHED
+              if p["topic"].endswith("/available") and p["payload"] == const.PAYLOAD_ONLINE]
+    assert len(online) == 1
+    assert mgr._active_devices[addr]["failure_count"] == 0

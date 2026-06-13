@@ -161,7 +161,9 @@ class CanBridge:
                     can_id = f"{msg.arbitration_id:03X}"
                 data_hex = msg.data.hex().upper()
                 frame = f"{can_id}#{data_hex}"
-                self.mqtt.publish(self.topic_raw, frame, qos=1, retain=False)
+                # V-6: high-rate raw CAN telemetry uses QoS 0 (fire-and-forget) to
+                # reduce broker overhead. Commands/status/config stay at QoS 1.
+                self.mqtt.publish(self.topic_raw, frame, qos=0, retain=False)
             except can.CanError as exc:
                 log.warning("CAN read error: %s, retrying...", exc)
                 await asyncio.sleep(1.0)

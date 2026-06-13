@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir --break-system-packages \
 # BUILD_VERSION changes per release, busting Docker cache to ensure fresh clone
 ARG BUILD_VERSION=dev
 RUN git clone --depth 1 https://github.com/Backroads4Me/librecoach-node-red /opt/librecoach-project && \
+    test -f /opt/librecoach-project/artifact/flows.json && \
+    test -f /opt/librecoach-project/flows_cred.json && \
     rm -rf /opt/librecoach-project/.git && \
     rm -f /opt/librecoach-project/.gitignore /opt/librecoach-project/.gitattributes
 
@@ -67,8 +69,16 @@ RUN chmod +x /etc/cont-init.d/*.sh 2>/dev/null || true
 # Copy orchestrator as cont-init.d script (runs once at startup before services)
 COPY --chmod=755 run.sh /etc/cont-init.d/orchestrator.sh
 
-# Strip Windows CRLF line endings from all scripts and s6 config files
-# EXCLUDE binary files (.png) to prevent destruction of integration logos
+# Strip Windows CRLF line endings from text files only (D-2).
+# Use an explicit text-extension whitelist instead of "everything except .png",
+# so unknown/future binary assets are never fed through sed and corrupted.
+# s6 service files (run/finish/type) and env files have no extension, so they
+# are matched by name explicitly.
 RUN find /etc/s6-overlay /etc/cont-init.d /opt/vehicle_bridge \
     /opt/librecoach-project /opt/librecoach_ble \
-    -type f ! -name "*.png" -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+    -type f \( \
+        -name "*.sh" -o -name "*.js" -o -name "*.json" -o -name "*.yaml" \
+        -o -name "*.yml" -o -name "*.md" -o -name "*.txt" -o -name "*.html" \
+        -o -name "*.css" -o -name "*.py" -o -name "*.conf" \
+        -o -name "run" -o -name "finish" -o -name "type" -o -name "up" \
+    \) -exec sed -i 's/\r$//' {} + 2>/dev/null || true

@@ -50,6 +50,63 @@ done
 
 PROJECT_DIR="/config/projects/librecoach-node-red"
 
+echo "LibreCoach owns Node-RED flows unless 'prevent_flow_updates' is enabled"
+echo "in the LibreCoach add-on configuration. Local edits to flows are backed"
+echo "up before being overwritten."
+
+# ---------------------------------------------------------------------------
+# Drift detection: hashes of the files LibreCoach last deployed are recorded
+# in $HASH_FILE. If a tracked file in /config no longer matches its recorded
+# hash, the user edited it directly — copy it to a timestamped backup before
+# overwriting.
+# ---------------------------------------------------------------------------
+HASH_FILE="/config/.librecoach-deployed-hashes"
+BACKUP_ROOT="/config/librecoach-backups"
+BACKUP_DIR="$BACKUP_ROOT/$(date +%Y%m%d-%H%M%S)"
+
+deployed_hash() {
+    # Recorded hash of a file from the previous deployment ("" if unknown)
+    [ -f "$HASH_FILE" ] || { echo ""; return; }
+    awk -v f="$1" '$2 == f {print $1}' "$HASH_FILE"
+}
+
+backup_if_drifted() {
+    local file=$1
+    local source=$2
+    [ -f "/config/$file" ] || return 0
+    local last current
+    last=$(deployed_hash "$file")
+    current=$(md5sum "/config/$file" | cut -d' ' -f1)
+    if [ -z "$last" ]; then
+        # No recorded hash: first upgrade from a pre-hash-tracking version, the
+        # riskiest case — we can't know whether the user edited the file. Fall
+        # back to comparing against the bundled file about to be deployed and
+        # back up on any difference. This may save a copy that was never
+        # hand-edited (e.g. flows_cred.json is re-encrypted with a fresh IV on
+        # every start), but a redundant backup beats destroying a user's only
+        # copy of their edits.
+        if [ -f "$SOURCE_DIR/$source" ] && [ "$current" = "$(md5sum "$SOURCE_DIR/$source" | cut -d' ' -f1)" ]; then
+            return 0
+        fi
+        mkdir -p "$BACKUP_DIR"
+        cp "/config/$file" "$BACKUP_DIR/$file"
+        echo "NOTICE: /config/$file differs from the bundled version and no deployment"
+        echo "        record exists yet (first run with drift tracking). A copy was"
+        echo "        saved to $BACKUP_DIR/$file before overwriting."
+        return 0
+    fi
+    if [ "$current" != "$last" ]; then
+        mkdir -p "$BACKUP_DIR"
+        cp "/config/$file" "$BACKUP_DIR/$file"
+        echo "NOTICE: /config/$file was edited outside LibreCoach."
+        echo "        A copy was saved to $BACKUP_DIR/$file before overwriting."
+    fi
+}
+
+backup_if_drifted "flows.json" "artifact/flows.json"
+backup_if_drifted "flows_cred.json" "flows_cred.json"
+backup_if_drifted "package.json" "package.json"
+
 # Create project directories
 mkdir -p "$PROJECT_DIR/data"
 
@@ -57,19 +114,54 @@ mkdir -p "$PROJECT_DIR/data"
 cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 
 # Copy package.json to config directory for Node-RED dependencies
-# This ensures that LibreCoach-required nodes (e.g. node-red-contrib-markdown-note) 
+# This ensures that LibreCoach-required nodes (e.g. node-red-contrib-markdown-note)
 # are automatically installed by Node-RED during its npm initialization phase.
-cp "$SOURCE_DIR/package.json" /config/package.json
+# User-added dependencies (not part of the bundled package.json) are merged back
+# in so direct `npm install`s survive updates; on any merge failure the bundled
+# file is used as-is.
+if [ -f /config/package.json ] && command -v node >/dev/null 2>&1; then
+    if node -e '
+        const fs = require("fs");
+        const bundled = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+        const current = JSON.parse(fs.readFileSync("/config/package.json", "utf8"));
+        const merged = { ...bundled };
+        merged.dependencies = { ...(current.dependencies || {}), ...(bundled.dependencies || {}) };
+        fs.writeFileSync("/config/package.json.tmp", JSON.stringify(merged, null, 2) + "\n");
+    ' "$SOURCE_DIR/package.json" 2>/dev/null; then
+        mv /config/package.json.tmp /config/package.json
+        echo "Merged user-added package.json dependencies with bundled dependencies"
+    else
+        rm -f /config/package.json.tmp
+        echo "WARNING: package.json merge failed — using bundled package.json"
+        cp "$SOURCE_DIR/package.json" /config/package.json
+    fi
+else
+    cp "$SOURCE_DIR/package.json" /config/package.json
+fi
 
-# Copy flows.json and flows_cred.json to Node-RED config
+# Copy the generated flow artifact and credentials to Node-RED config
+# node-red-contrib-flow-splitter-extended writes the deployable flows file to artifact/.
 # flows_cred.json contains MQTT credentials encrypted with credential_secret="librecoach"
-cp "$SOURCE_DIR/flows.json" /config/flows.json
+if [ ! -f "$SOURCE_DIR/artifact/flows.json" ]; then
+    echo "ERROR: flows.json not found at $SOURCE_DIR/artifact/flows.json"
+    echo "This usually means LibreCoach needs to be updated. Please update LibreCoach"
+    echo "to the latest version in Settings → Add-ons, then restart it."
+    exit 1
+fi
+cp "$SOURCE_DIR/artifact/flows.json" /config/flows.json
 cp "$SOURCE_DIR/flows_cred.json" /config/flows_cred.json
 
 # Copy settings.js to Node-RED config
-# This allows LibreCoach to inject custom environment variables, global contexts, 
+# This allows LibreCoach to inject custom environment variables, global contexts,
 # or specific node configurations required by the bundled flows.
 cp "$SOURCE_DIR/data/settings.js" /config/settings.js
+
+# Record the hashes of what was just deployed so the next run can detect drift.
+{
+    for f in flows.json flows_cred.json package.json; do
+        [ -f "/config/$f" ] && md5sum "/config/$f" | awk -v f="$f" '{print $1, f}'
+    done
+} > "$HASH_FILE"
 
 # Keep GPL license with the installed project
 if [ -f "$SOURCE_DIR/LICENSE" ]; then

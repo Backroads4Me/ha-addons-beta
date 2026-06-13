@@ -1,4 +1,73 @@
-#### 1.2.9 (Mar 6, 2026)
+### Unreleased
+
+**Hughes Power Watchdog BLE bridge**
+
+- Added default-off Bluetooth telemetry support for Hughes Power Watchdog Gen 1 and Gen 2 devices, including 30A and 50A models
+- Added V2 relay, neutral-detection, and energy-reset command bridging over MQTT; Gen 1 remains read-only
+- Added independent Micro-Air and Hughes enable controls so disabling one integration releases only its BLE devices
+- Added protocol fixtures and lifecycle tests; Home Assistant entity creation remains deferred to the planned Node-RED work
+
+**Fixes (startup hardening, review items C-1 … C-8)**
+
+- Startup failures now abort deterministically with clear logs instead of continuing with partial deployment state (`set -e` was inert)
+- The original Node-RED `credential_secret` backup now lives in add-on private `/data` storage and can no longer be destroyed by restarts; existing backups are migrated automatically
+- MQTT usernames/passwords containing spaces or shell metacharacters now work throughout; values with newlines are rejected with a clear error
+- MQTT credential injection into `settings.js` no longer uses `sed` and cannot corrupt the file; a failed `flows_cred.json` re-encryption can no longer leave a corrupted file behind
+- Local edits to Node-RED flows are backed up to `/config/librecoach-backups/<timestamp>/` before LibreCoach overwrites them; user-added `package.json` dependencies are preserved across updates
+- Startup now waits for LibreCoach flows to report ready via the retained `librecoach/nodered/ready` topic instead of only an open Node-RED port (requires a flow version that publishes the topic; older flows fall back to the previous port-open behavior after 90 seconds)
+- The BLE integration's automated cleanup now requires a healthy Supervisor and repeated confirmations spread across hours, and backs up `configuration.yaml` before editing it
+- A missing MQTT integration no longer causes a crash loop: the add-on stays alive, polls, and resumes setup automatically; the self-watchdog is enabled only after a successful setup
+
+### 1.2.20 (Jun 7, 2026)
+
+**Fixes**
+
+- Fixed Node-RED failing to start on fresh installations
+- Fixed version numbering error (1.2.2 should have been 1.2.19)
+
+### 1.2.2 (Jun 5, 2026)
+
+- Added RV-C Network Time Sync: periodically broadcasts system time to the RV-C network. Disabled by default; enable in add-on configuration
+- Added AI Dashboard Prompt export: generates a structured LLM prompt for AI-assisted dashboard creation
+- Added Solar Controller support
+- Enhanced AquaHot 2 integration with updated command encoding and expanded zone support
+- Added HA Entity Export: view and export a list of all discovered Home Assistant entities
+
+**Fixes**
+
+- Fixed MQTT broker authentication failures after clean installs
+- Fixed dimmer state handling in HA status publishers
+- Fixed water pump and autofill status update reporting
+- Fixed color mode not matching discovery state on first publish
+
+### 1.2.16 (Apr 3, 2026)
+
+- Prevented dimmer capability detection from being lost after updates or restarts
+- Added standard RV-C thermostat climate entity support with Home Assistant control
+- Removed duplicate naming in water heater entities
+- Added beta support for wireless panel signal status, available only when beta testing is enabled in config
+
+#### 1.2.15 (Mar 28, 2026)
+
+- Corrected a AquaHot water heater bug
+
+#### 1.2.14 (Mar 17, 2026)
+
+- Added heat source presets for Micro-Air thermostats (Heat Pump, Furnace, etc.)
+- Heat source selection persists across off/on cycles
+
+#### 1.2.13 (Mar 16, 2026)
+
+- Improved Aqua-Hot zone control decoding
+- Fixed Victron device icon bug
+- Added setpoint range validation to floor heat level discovery
+
+#### 1.2.12 (Mar 6, 2026)
+
+- Added Aqua-Hot per-zone heating status
+- Fixed recording export download link
+
+#### 1.2.11 (Mar 6, 2026)
 
 - Bug fixes
 

@@ -1,6 +1,6 @@
 # Home Assistant add-on: LibreCoach
 name: "LibreCoach"
-version: "1.2.14"
+version: "1.2.15"
 slug: "librecoach"
 description: "Smart home control for your RV"
 url: "https://librecoach.com"
@@ -33,8 +33,10 @@ options:
   microair_enabled: false
   microair_email: ""
   microair_password: ""
+  hughes_enabled: false
   victron_enabled: true
   beta_enabled: false
+  rvc_time_sync_enabled: false
   confirm_nodered_takeover: false
   prevent_flow_updates: false
   debug_logging: false
@@ -49,8 +51,10 @@ schema:
   microair_enabled: bool
   microair_email: str?
   microair_password: password?
+  hughes_enabled: bool
   victron_enabled: bool
   beta_enabled: bool
+  rvc_time_sync_enabled: bool
   confirm_nodered_takeover: bool
   prevent_flow_updates: bool
   debug_logging: bool
