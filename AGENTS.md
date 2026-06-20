@@ -10,8 +10,8 @@ source is pushed up to prod for release; prod's `librecoach/` should only ever c
 mirror.
 
 - **Source of truth:** `ha-addons-beta` (this repo) — all editing and verification.
-- **Prod:** `/home/ted/src/librecoach/ha-addons`, branch `fix/c1-c8-startup-hardening`.
-- **Release:** merge `fix/c1-c8-startup-hardening` → `main` in `ha-addons` (gated — explicit
+- **Prod:** `/home/ted/src/librecoach/ha-addons`, branch `release-integration`.
+- **Release:** merge `release-integration` → `main` in `ha-addons` (gated — explicit
   approval only; it triggers the prod build that reaches end users).
 
 Full procedure: **`beta-notes/beta_sync_plan.md`**. Read it before any sync or release work.
