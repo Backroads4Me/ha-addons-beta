@@ -14,12 +14,14 @@ from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_register_callback,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from .const import (
+    MQTT_BASE,
     TOPIC_STATE, TOPIC_SET, TOPIC_AVAILABLE, TOPIC_BRIDGE,
     TOPIC_LAST_SUCCESS, TOPIC_FAILURE_COUNT, TOPIC_LAST_ERROR,
     TOPIC_RESET_LOCKS, TOPIC_RECONNECT, TOPIC_CLEAR_ERRORS,
+    RETAINED_SCAN_WAIT,
     CONFIG_PATH, BLE_POLL_INTERVAL, BLE_BACKOFF_SCHEDULE, OFFLINE_AFTER_FAILURES,
     PAYLOAD_ONLINE, PAYLOAD_OFFLINE,
     ERROR_NONE, ERROR_AUTH_FAILED, ERROR_CONNECTIVITY,
@@ -76,6 +78,59 @@ class BleBridgeManager:
         except Exception as exc:
             _LOGGER.warning("Failed to clear locked devices: %s", exc)
 
+    async def _retire_stale_addresses(self, device_type: str, keep_address: str):
+        """Clear retained MQTT topics for stale addresses of one device type.
+
+        Rather than guess topic shapes, this subscribes to the device type's retained
+        subtree and lets the broker tell us what's actually there. That covers
+        bridge-owned topics, handler-specific dynamic topics (e.g. Micro-Air per-zone
+        configs), and leftovers from earlier sessions or add-on versions. Every
+        retained topic whose address segment differs from ``keep_address`` is
+        overwritten with an empty payload, which deletes it from the broker.
+
+        ``keep_address`` is the anchor that defines what is legitimate. Without a
+        valid anchor we cannot tell a stale ghost from the real device, so a missing
+        or empty anchor is a hard no-op: we must never wipe a whole device type just
+        because no lock is in effect (e.g. the real device is merely offline).
+        """
+        if not keep_address:
+            _LOGGER.warning(
+                "Refusing to retire %s topics without a locked address (no-op)",
+                device_type,
+            )
+            return
+        keep = keep_address.lower()
+        found: set[str] = set()
+
+        @callback
+        def _collect(msg):
+            # Only non-empty retained messages need clearing.
+            if getattr(msg, "retain", False) and msg.payload:
+                found.add(msg.topic)
+
+        trees = [
+            f"{MQTT_BASE}/{device_type}/#",
+            f"librecoach/bridge/{device_type}/#",
+        ]
+        unsubs = []
+        for tree in trees:
+            unsubs.append(await mqtt.async_subscribe(self.hass, tree, _collect, qos=1))
+        try:
+            # Retained messages flush on subscribe; wait briefly for them to land.
+            await asyncio.sleep(RETAINED_SCAN_WAIT)
+        finally:
+            for unsub in unsubs:
+                unsub()
+
+        for topic in found:
+            # Address is always the 4th segment: librecoach/{ble|bridge}/{type}/{addr}/...
+            parts = topic.split("/")
+            addr = parts[3].lower() if len(parts) > 3 else None
+            if addr == keep:
+                continue
+            await mqtt.async_publish(self.hass, topic, "", qos=1, retain=True)
+            _LOGGER.info("Retired stale retained topic %s", topic)
+
     async def start(self):
         """Register a single BLE advertisement callback and subscribe to command topics."""
         # B-1: one callback for the whole bridge; the callback iterates handlers.
@@ -104,6 +159,18 @@ class BleBridgeManager:
         self._unsub_mqtt.append(await mqtt.async_subscribe(
             self.hass, TOPIC_RESET_LOCKS, self._on_reset_locks, qos=1,
         ))
+
+        # On startup, sweep retained topics left by any address other than the one
+        # we're locked to. Discovery ignores non-locked addresses, so they would
+        # otherwise linger forever as "disconnected" ghosts in the UI. Runs in the
+        # background so it never delays startup. Skip falsy/corrupted lock values so
+        # an absent anchor never triggers a wipe of every device of that type.
+        for device_type, address in self._locked_devices.items():
+            if not address:
+                continue
+            self.hass.async_create_task(
+                self._retire_stale_addresses(device_type, address)
+            )
 
     async def stop(self):
         """Cancel all poll loops, disconnect all devices, and unregister callbacks."""
@@ -332,11 +399,19 @@ class BleBridgeManager:
 
                 await self._publish_messages(handler, parsed)
 
-                # Lock this address on first successful poll.
+                # Lock this address on first successful poll and retire stale peers.
                 if device_type not in self._locked_devices:
                     await self.hass.async_add_executor_job(
                         self._save_locked_device_sync, device_type, address
                     )
+                    # Tear down any competing devices discovered during the unlocked
+                    # window so only the winner keeps polling.
+                    for other_addr in list(self._active_devices):
+                        entry_other = self._active_devices[other_addr]
+                        if other_addr != address and entry_other["handler"].device_type() == device_type:
+                            await self._teardown_device(other_addr)
+                    # Clear any retained MQTT topics left by those losing addresses.
+                    await self._retire_stale_addresses(device_type, address)
 
                 await self._on_poll_success(device_type, address)
 

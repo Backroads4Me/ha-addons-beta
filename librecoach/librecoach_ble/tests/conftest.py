@@ -70,7 +70,13 @@ class HomeAssistant:
     pass
 
 
+def _callback(func):
+    """Identity stand-in for homeassistant.core.callback."""
+    return func
+
+
 ha_core.HomeAssistant = HomeAssistant
+ha_core.callback = _callback
 
 # mqtt: record publishes and subscriptions
 ha_mqtt = types.ModuleType("homeassistant.components.mqtt")
@@ -82,8 +88,27 @@ async def _async_publish(hass, topic, payload, qos=0, retain=False):
     PUBLISHED.append({"topic": topic, "payload": payload, "qos": qos, "retain": retain})
 
 
+# Retained messages a test wants the broker to "flush" on subscribe. Each entry is
+# a simple object with .topic/.payload/.retain, keyed by the topic-filter prefix
+# (the part before the trailing '#') the subscription must match.
+RETAINED_FIXTURES = []
+
+
+class _FakeMsg:
+    def __init__(self, topic, payload, retain=True):
+        self.topic = topic
+        self.payload = payload
+        self.retain = retain
+
+
 async def _async_subscribe(hass, topic, callback, qos=0):
     SUBSCRIPTIONS.append(topic)
+    # Emulate the broker flushing retained messages to a fresh wildcard subscriber.
+    if topic.endswith("/#"):
+        prefix = topic[:-1]  # strip '#', keep trailing '/'
+        for msg in RETAINED_FIXTURES:
+            if msg.topic.startswith(prefix):
+                callback(msg)
     return lambda: None  # unsubscribe handle
 
 
@@ -146,3 +171,9 @@ def reset_recorders():
     PUBLISHED.clear()
     SUBSCRIPTIONS.clear()
     REGISTERED_CALLBACKS.clear()
+    RETAINED_FIXTURES.clear()
+
+
+def add_retained(topic, payload="x", retain=True):
+    """Register a retained message the fake broker flushes to wildcard subscribers."""
+    RETAINED_FIXTURES.append(_FakeMsg(topic, payload, retain))

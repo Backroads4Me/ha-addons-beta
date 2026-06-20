@@ -179,6 +179,98 @@ def test_b2_fake_nonzoned_handler_can_publish():
     assert json.loads(conftest.PUBLISHED[0]["payload"]) == {"watts": 1200}
 
 
+# --- Stale-device cleanup: retire retained MQTT topics for non-locked addresses ---
+
+def _no_sleep(monkeypatch):
+    async def _sleep(_delay):
+        return None
+    monkeypatch.setattr("librecoach_ble.bridge.asyncio.sleep", _sleep)
+
+
+def test_retire_clears_all_topics_except_locked_address(monkeypatch):
+    conftest.reset_recorders()
+    _no_sleep(monkeypatch)
+
+    keep = "78:e3:6d:fc:5e:ce"
+    stale = "a8:03:2a:31:ce:8a"
+    # A stale address leaves several retained topics, including a dynamic zone config.
+    conftest.add_retained(f"librecoach/ble/microair/{stale}/available", "offline")
+    conftest.add_retained(f"librecoach/ble/microair/{stale}/zone/0/config", "{}")
+    conftest.add_retained(f"librecoach/bridge/microair/{stale}", "disconnected")
+    # The locked device's own retained topics must survive the sweep.
+    conftest.add_retained(f"librecoach/ble/microair/{keep}/available", "online")
+    conftest.add_retained(f"librecoach/ble/microair/{keep}/zone/0/config", "{}")
+
+    mgr = BleBridgeManager(FakeHass(), {})
+    run(mgr._retire_stale_addresses("microair", keep))
+
+    cleared = {p["topic"] for p in conftest.PUBLISHED if p["payload"] == "" and p["retain"]}
+    assert f"librecoach/ble/microair/{stale}/available" in cleared
+    assert f"librecoach/ble/microair/{stale}/zone/0/config" in cleared
+    assert f"librecoach/bridge/microair/{stale}" in cleared
+    # Nothing belonging to the locked address was cleared.
+    assert not any(keep in topic for topic in cleared)
+
+
+def test_retire_without_anchor_is_a_noop(monkeypatch):
+    """Missing/empty anchor must never wipe a whole device type (offline device safety)."""
+    conftest.reset_recorders()
+    _no_sleep(monkeypatch)
+
+    conftest.add_retained("librecoach/ble/microair/aa:aa:aa:aa:aa:aa/available", "online")
+    conftest.add_retained("librecoach/bridge/microair/bb:bb:bb:bb:bb:bb", "connected")
+
+    mgr = BleBridgeManager(FakeHass(), {})
+    for bad_anchor in (None, ""):
+        run(mgr._retire_stale_addresses("microair", bad_anchor))
+
+    assert conftest.PUBLISHED == []
+
+
+class RecordingHass(FakeHass):
+    """FakeHass that records how many background tasks start() schedules."""
+
+    def __init__(self):
+        self.created = 0
+
+    def async_create_task(self, coro):
+        self.created += 1
+        coro.close()  # don't actually run it
+        return None
+
+
+def test_startup_skips_falsy_lock_values(monkeypatch):
+    """A corrupted lock value must not anchor a sweep at startup."""
+    conftest.reset_recorders()
+    _no_sleep(monkeypatch)
+
+    # Falsy lock value — start() must NOT schedule a retire sweep for it.
+    hass = RecordingHass()
+    mgr = BleBridgeManager(hass, {"locked_devices": {"microair": ""}})
+    run(mgr.start())
+    assert hass.created == 0
+
+    # A valid lock value — start() SHOULD schedule exactly one sweep.
+    hass2 = RecordingHass()
+    mgr2 = BleBridgeManager(hass2, {"locked_devices": {"microair": "78:e3:6d:fc:5e:ce"}})
+    run(mgr2.start())
+    assert hass2.created == 1
+
+
+def test_retire_ignores_already_cleared_retained(monkeypatch):
+    conftest.reset_recorders()
+    _no_sleep(monkeypatch)
+
+    stale = "cc:cc:cc:cc:cc:cc"
+    # An empty retained payload is an already-tombstoned topic; do not re-publish it.
+    conftest.add_retained(f"librecoach/ble/microair/{stale}/available", "")
+
+    mgr = BleBridgeManager(FakeHass(), {})
+    run(mgr._retire_stale_addresses("microair", "78:e3:6d:fc:5e:ce"))
+
+    assert conftest.PUBLISHED == []
+
+
 # --- B-4: backoff schedule ---
 
 def test_b4_backoff_progression():

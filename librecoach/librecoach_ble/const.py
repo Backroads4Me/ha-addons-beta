@@ -32,6 +32,10 @@ TOPIC_RESET_LOCKS = MQTT_BASE + "/reset_locks"          # B-3/BL-3
 TOPIC_RECONNECT    = MQTT_BASE + "/{device_type}/{address}/reconnect"
 TOPIC_CLEAR_ERRORS = MQTT_BASE + "/{device_type}/{address}/clear_errors"
 
+# Seconds to wait for the broker to flush retained messages during a stale-topic
+# scan. Retained messages arrive immediately on subscribe; this is a safety margin.
+RETAINED_SCAN_WAIT = 2.0
+
 # Availability payloads
 PAYLOAD_ONLINE  = "online"
 PAYLOAD_OFFLINE = "offline"
