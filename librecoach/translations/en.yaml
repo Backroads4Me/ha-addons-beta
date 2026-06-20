@@ -22,7 +22,7 @@ configuration:
     description: "Password for your Micro-Air EasyTouch account."
   hughes_enabled:
     name: "Enable Hughes Power Watchdog Integration"
-    description: "Connects to supported Hughes Power Watchdog surge protectors via Bluetooth."
+    description: "Connects to supported Hughes Power Watchdog surge protectors via Bluetooth. For setup, keep only your Watchdog nearby."
   victron_enabled:
     name: "Enable Victron Energy Integration"
     description: "Requires a GX device with MQTT enabled."

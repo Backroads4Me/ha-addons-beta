@@ -22,7 +22,7 @@ configuration:
     description: "Contraseña de su cuenta Micro-Air EasyTouch."
   hughes_enabled:
     name: "Activar integración Hughes Power Watchdog"
-    description: "Se conecta a protectores contra sobretensiones Hughes Power Watchdog compatibles mediante Bluetooth."
+    description: "Se conecta a protectores Hughes Power Watchdog compatibles por Bluetooth. Para configurarlo, mantenga cerca solo su Watchdog."
   victron_enabled:
     name: "Activar integración Victron Energy"
     description: "Requiere un dispositivo GX con MQTT activado."
