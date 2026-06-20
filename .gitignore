@@ -65,3 +65,7 @@ REVIEW-*.md
 *PLAN*.md
 *.json.bak
 options.json
+
+# beta-notes/ is the tracked home for beta workflow + review docs, so re-include
+# it even though the scratch patterns above (REVIEW-*.md, *PLAN*.md) match files in it.
+!beta-notes/**
