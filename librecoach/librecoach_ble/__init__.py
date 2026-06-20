@@ -42,7 +42,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Suicide pattern monitor
     slug = conf.get("addon_slug")
     if slug:
-        hass.async_create_task(_monitor_addon_status(hass, slug))
+        # Background task: must NOT be awaited during bootstrap (it sleeps for
+        # hours) and must be cancelled on shutdown. async_create_task would hold
+        # the startup phase open and survive shutdown, blocking HA from wrapping
+        # up start-up and from a clean stop.
+        hass.async_create_background_task(
+            _monitor_addon_status(hass, slug), name="librecoach_ble_addon_monitor"
+        )
 
     # After HA is fully started (Bluetooth + MQTT ready), subscribe to config toggle.
     # The retained MQTT message triggers bridge start or confirms disabled state.
