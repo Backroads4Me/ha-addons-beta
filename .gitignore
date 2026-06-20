@@ -23,6 +23,12 @@ venv/
 ENV/
 env/
 
+# Testing
+.pytest_cache/
+.benchmarks/
+.coverage
+htmlcov/
+
 # IDEs
 .vscode/
 .idea/
@@ -38,13 +44,10 @@ env/
 # Logs
 *.log
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
 # Home Assistant
 secrets.yaml
+.env
+options.json
 *.db
 *.db-shm
 *.db-wal
@@ -59,7 +62,3 @@ temp/
 Thumbs.db
 .Spotlight-V100
 .Trashes
-
-# LibreCoach Local Dev
-*.json.bak
-options.json
