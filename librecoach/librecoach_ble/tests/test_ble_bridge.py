@@ -137,6 +137,20 @@ def test_microair_parses_string_encoded_capabilities():
     assert handler._zone_configs[1]["MAV"] == 3126
 
 
+def test_microair_omits_unavailable_outdoor_temperature():
+    handler = MicroAirHandler("aa:bb", {})
+
+    parsed = handler.parse_status({
+        "PRM": [0, 8, -32768],
+        "Z_sts": {
+            "0": [68, 68, 74, 60, 72, 45, 0, 128, 128, 128, 0, 128, 68, 0, 0, 0],
+        },
+    })
+
+    assert "outdoorTemperature" not in parsed["zones"][0]
+    assert parsed["zones"][0]["facePlateTemperature"] == 68
+
+
 def test_b2_fake_nonzoned_handler_can_publish():
     conftest.reset_recorders()
 

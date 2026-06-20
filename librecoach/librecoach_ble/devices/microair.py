@@ -39,6 +39,8 @@ FAN_MODE_MAP = {
     128: "auto",
 }
 
+UNAVAILABLE_TEMPERATURE = -32768
+
 FAULT_DESCRIPTIONS = {
     0: "No fault",
     1: "No communication",
@@ -194,6 +196,8 @@ class MicroAirHandler(BleDeviceHandler):
 
         param = status.get("PRM", [])
         outdoor_temp = param[2] if len(param) > 2 else None
+        if outdoor_temp == UNAVAILABLE_TEMPERATURE:
+            outdoor_temp = None
         zone_data = {}
         available_zones = []
 
