@@ -4,8 +4,9 @@
 #
 # Beta is the source of truth. You author and test the LibreCoach add-on in
 # ha-addons-beta, then run this to push the *shared addon source* up to the prod
-# ha-addons repo (currently the release-integration branch) ahead of a
-# release.
+# ha-addons repo ahead of a release. It is branch-agnostic: it copies the working
+# tree of whatever branch each repo currently has checked out, so the same script
+# works for every test/migration cycle without editing.
 #
 # Synced surface: librecoach/ ONLY, minus build/branding files. Everything else
 # (repo root, .github/, can-mqtt-bridge/, beta-notes/) is intentionally
@@ -22,6 +23,10 @@ PROD="$(cd "$BETA/.." && pwd)/ha-addons"      # ha-addons (prod), sibling dir
 
 SRC="$BETA/librecoach/"                        # trailing slash: copy CONTENTS
 DST="$PROD/librecoach/"
+
+# Branch names are read live (never hardcoded) so this script is reusable across cycles.
+BETA_BRANCH="$(git -C "$BETA" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+PROD_BRANCH="$(git -C "$PROD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
 
 APPLY=0
 [[ "${1:-}" == "--apply" ]] && APPLY=1
@@ -45,8 +50,8 @@ RSYNC_OPTS=(
 )
 
 echo "Model B mirror — beta ➜ prod (addon source only)"
-echo "  source: $SRC"
-echo "  dest:   $DST  [$(git -C "$PROD" rev-parse --abbrev-ref HEAD)]"
+echo "  source: $SRC  [$BETA_BRANCH]"
+echo "  dest:   $DST  [$PROD_BRANCH]"
 echo
 
 if [[ $APPLY -eq 1 ]]; then
@@ -86,6 +91,8 @@ Next, in $PROD:
   1. Apply any config.yaml option/schema changes flagged above (keep prod version+image).
   2. Run the add-on tests:  (cd librecoach/librecoach_ble/tests && python3 -m pytest -q)
   3. Review:  git -C "$PROD" status  &&  rtk proxy git -C "$PROD" diff
-  4. Commit on release-integration (do NOT merge to main without approval).
+  4. Commit on the current prod branch ($PROD_BRANCH); do NOT merge to main without approval.
+     The mirror copies files only — beta's commit history does NOT cross over, so this
+     becomes one fresh prod commit (or however many you choose to split it into).
 EOF
 fi

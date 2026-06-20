@@ -12,20 +12,35 @@ shared addon source **up** into the prod `ha-addons` repo for release.
 | Repo | Path | Role |
 |---|---|---|
 | `ha-addons-beta` | `/home/ted/src/librecoach/ha-addons-beta` | **Source of truth.** All authoring + ALL verification happen here. |
-| `ha-addons` | `/home/ted/src/librecoach/ha-addons` | Prod. Receives the mirror on branch `release-integration`; merges to `main` = release. |
+| `ha-addons` | `/home/ted/src/librecoach/ha-addons` | Prod. Receives the mirror on its integration branch; merging that branch into `main` = release. |
 
 Both repos are **separate GitHub repos with no shared git history** (HA add-on
 repositories are consumed by URL; beta testers add the beta URL). They are kept tied
 only by the file mirror below — never by a git merge across them.
 
+### Branch conventions (this doc never hardcodes branch names)
+
+- **Prod** keeps a **standing integration branch** — `release-integration` by convention —
+  reused every cycle; it is what merges into `main` at release.
+- **Beta** branch names vary per testing cycle.
+- The steps below refer to "the beta branch" and "prod's integration branch" generically so
+  this plan and `mirror.sh` stay reusable for all future cycles without editing. `mirror.sh`
+  reads both branch names live; it never depends on a specific name.
+
 ## Release flow
 
-1. Author + test in `ha-addons-beta`. Commit on `main`. Push beta → beta build → verify in HA.
+1. Author + test in `ha-addons-beta` on the beta branch for this cycle. Commit there.
+   Push beta → beta build → verify in HA.
 2. Run `beta-notes/mirror.sh --apply` to copy the addon source into prod.
-3. In prod: apply any flagged `config.yaml` deltas, run tests, review, commit on `release-integration`. Push the branch.
-4. **Release = merge `release-integration` → `main` in `ha-addons`.** This triggers
+3. In prod: apply any flagged `config.yaml` deltas, run tests, review, then commit on prod's
+   integration branch and push it.
+4. **Release = merge prod's integration branch → `main` in `ha-addons`.** This triggers
    the prod build and is the only step that reaches end users. **Never do it without
    explicit approval.** Bump prod's `version:` at this point.
+
+> **The mirror copies files, not git history.** The two repos share no history, so beta's
+> commits never cross over. Each migration lands in prod as **one fresh commit** (or however
+> many you choose to split it into) — the granular beta commit history stays in beta.
 
 ---
 
@@ -114,7 +129,7 @@ EOF
 
 ---
 
-## Pre-release checklist (before merging fix/c1-c8 → main)
+## Pre-release checklist (before merging prod's integration branch → main)
 
 - [ ] All verification done in **beta** and the beta build tested in HA
 - [ ] **Node-RED `main` merged + pushed** with a fresh `artifact/flows.json` (see CRITICAL)
