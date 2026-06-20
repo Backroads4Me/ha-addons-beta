@@ -29,6 +29,9 @@ configuration:
   beta_enabled:
     name: "Activar funciones beta"
     description: "Activa funciones experimentales cuando están disponibles. Úselo bajo su propio riesgo."
+  rvc_time_sync_enabled:
+    name: "Activar sincronización de hora de red RV-C"
+    description: "Transmite periódicamente la hora actual del sistema a la red RV-C. Ayuda a mantener los dispositivos del RV sincronizados en hora. Desactivado de forma predeterminada."
   confirm_nodered_takeover:
     name: "Permitir sobrescritura de Node-RED (solo configuración de instalación inicial)"
     description: "Permite que LibreCoach sobrescriba sus flujos de Node-RED existentes. ADVERTENCIA: ¡Esto eliminará sus flujos actuales!"

@@ -84,6 +84,24 @@ else:
     print("  ✓ only version/image differ (or identical) — nothing to port")
 PYEOF
 
+# --- translations parity check (es.yaml must always mirror en.yaml's keys) ---
+echo
+echo "translations check (en.yaml vs es.yaml keys) ..."
+python3 - "$SRC/translations/en.yaml" "$SRC/translations/es.yaml" <<'PYEOF'
+import sys, re
+def keys(p):
+    return [m.group(1) for l in open(p) if (m := re.match(r"  (\w+):", l))]
+en = keys(sys.argv[1]); es = keys(sys.argv[2])
+missing = [k for k in en if k not in es]
+extra   = [k for k in es if k not in en]
+if missing or extra:
+    print("  ⚠️  en.yaml / es.yaml key mismatch — keep translations in sync:")
+    if missing: print("     missing from es.yaml:", ", ".join(missing))
+    if extra:   print("     extra in es.yaml:    ", ", ".join(extra))
+else:
+    print("  ✓ en.yaml and es.yaml have matching keys")
+PYEOF
+
 echo
 if [[ $APPLY -eq 1 ]]; then
   cat <<EOF

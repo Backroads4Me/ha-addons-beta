@@ -135,6 +135,7 @@ EOF
 - [ ] **Node-RED `main` merged + pushed** with a fresh `artifact/flows.json` (see CRITICAL)
 - [ ] `mirror.sh --apply` run; prod `git status` shows only intended changes
 - [ ] config.yaml drift check is clean (only `version:` + `image:` differ); image still ends `-librecoach`
+- [ ] `translations/es.yaml` keys match `translations/en.yaml` (mirror.sh checks this — es.yaml must always mirror en.yaml's options)
 - [ ] Add-on tests pass in prod: `(cd librecoach/librecoach_ble/tests && python3 -m pytest -q)`
 - [ ] prod `version:` bumped for the release
 - [ ] `rtk proxy git diff` reviewed (the `rtk` hook rewrites plain `git diff` into a non-patch summary)
