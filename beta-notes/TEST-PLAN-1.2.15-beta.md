@@ -13,7 +13,7 @@ Released together from two repos:
 
 > Beta images use the `-beta` suffix and install **side by side** with production. LibreCoach
 > entities are grouped into **devices** under *Settings → Devices & Services → Devices* (e.g.
-> **Generator**, **Hughes Autoformers**, tanks, climates), all with manufacturer **LibreCoach**.
+> **Generator**, **Hughes Power Watchdog**, tanks, climates), all with manufacturer **LibreCoach**.
 
 ---
 
@@ -111,7 +111,7 @@ value. When the source returns they go **available** again.
 **Requires a Hughes Power Watchdog** (V1 models `PMD/PWS/PMS`, or V2 `WD_*`). Set
 `hughes_enabled: true` in the addon **Configuration** tab, save, restart.
 
-**Where:** a new **"Hughes Autoformers"** device. **What you'll see:**
+**Where:** a new **"Hughes Power Watchdog"** device. **What you'll see:**
 
 - ☐ With `hughes_enabled` **off**: **no** Hughes entities exist.
 - ☐ With it **on**: the unit connects (see Log), and you get live electrical entities such as
