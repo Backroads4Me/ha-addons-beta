@@ -89,6 +89,54 @@ def test_b2_nonnumeric_zone_keys_do_not_crash():
     assert any(m.topic.endswith("/state") for m in msgs)
 
 
+def test_microair_poll_uses_zoneless_config_request(monkeypatch):
+    handler = MicroAirHandler("aa:bb", {})
+    requests = []
+    responses = iter([
+        {"Z_sts": {"0": [70, 75, 72, 68, 0, 0, 1, 2, 2, 128, 2, 0, 71, 0, 0, 2]}},
+        {
+            "Type": "Response",
+            "RT": "Config",
+            "CFG": {"Zone": 0, "MAV": 6, "FA": [0] * 16, "SPL": [55, 95, 40, 95]},
+        },
+    ])
+
+    async def fake_request(client, command):
+        requests.append(command)
+        return next(responses)
+
+    async def no_sleep(_delay):
+        return None
+
+    monkeypatch.setattr(handler, "_request_json", fake_request)
+    monkeypatch.setattr("librecoach_ble.devices.microair.asyncio.sleep", no_sleep)
+
+    parsed = run(handler.poll(object()))
+
+    assert requests == [{"Type": "Get Status"}, {"Type": "Get Config"}]
+    assert parsed["zone_configs"][0]["MAV"] == 6
+
+
+def test_microair_does_not_cache_config_without_capabilities():
+    handler = MicroAirHandler("aa:bb", {})
+
+    assert handler._store_capability_config({
+        "Type": "Response", "RT": "Config", "CFG": {"Zone": 0},
+    }) is False
+    assert handler._zone_configs == {}
+
+
+def test_microair_parses_string_encoded_capabilities():
+    handler = MicroAirHandler("aa:bb", {})
+
+    assert handler._store_capability_config({
+        "Type": "Response",
+        "RT": "Config",
+        "CFG": json.dumps({"Zone": "1", "MAV": "3126", "SPL": [55, 95, 40, 95]}),
+    }) is True
+    assert handler._zone_configs[1]["MAV"] == 3126
+
+
 def test_b2_fake_nonzoned_handler_can_publish():
     conftest.reset_recorders()
 

@@ -114,31 +114,58 @@ class MicroAirHandler(BleDeviceHandler):
 
         parsed = self.parse_status(raw)
 
-        # Check for new zones and fetch their config (run once per newly discovered zone)
-        if "zones" in parsed:
-            found_zones = []
-            for z in parsed["zones"].keys():
-                try:
-                    found_zones.append(int(z))
-                except Exception:
-                    pass
-
-            missing_configs = [z for z in found_zones if z not in self._zone_configs]
-            if missing_configs:
-                for zone in missing_configs:
-                    await asyncio.sleep(2.0)
-                    resp = await self._request_json(client, {"Type": "Get Config", "Zone": zone})
-                    if resp and resp.get("Type") == "Response" and resp.get("RT") == "Config":
-                        cfg_str = resp.get("CFG", "{}")
-                        cfg_data = json.loads(cfg_str) if isinstance(cfg_str, str) else cfg_str
-                        self._zone_configs[zone] = {
-                            "MAV": cfg_data.get("MAV", 0),
-                            "FA": cfg_data.get("FA", [0] * 16),
-                            "SPL": cfg_data.get("SPL", [60, 85, 50, 85]),
-                            "MA": cfg_data.get("MA", [0] * 16),
-                        }
+        # Omitting Zone selects the firmware path that returns MAV/FA/MA/SPL.
+        # Per-zone requests can return only {"Zone": n}, which must not be cached
+        # as a valid capability record because that prevents future retries.
+        if parsed.get("zones") and not self._zone_configs:
+            await asyncio.sleep(2.0)
+            resp = await self._request_json(client, {"Type": "Get Config"})
+            self._store_capability_config(resp)
 
         return parsed
+
+    def _store_capability_config(self, response: dict | None) -> bool:
+        """Store meaningful capability records from a Config response."""
+        if not isinstance(response, dict):
+            return False
+        if response.get("Type") != "Response" or response.get("RT") != "Config":
+            return False
+
+        raw_cfg = response.get("CFG")
+        if isinstance(raw_cfg, str):
+            try:
+                raw_cfg = json.loads(raw_cfg)
+            except json.JSONDecodeError:
+                return False
+        if not isinstance(raw_cfg, dict):
+            return False
+
+        configs = []
+        if "Zone" in raw_cfg:
+            configs.append(raw_cfg)
+        else:
+            configs.extend(
+                cfg for key, cfg in raw_cfg.items()
+                if key.startswith("zone") and isinstance(cfg, dict)
+            )
+
+        stored = False
+        for cfg in configs:
+            try:
+                zone = int(cfg.get("Zone", 0))
+                mav = int(cfg.get("MAV", 0))
+            except (TypeError, ValueError):
+                continue
+            if mav == 0:
+                continue
+            self._zone_configs[zone] = {
+                "MAV": mav,
+                "FA": cfg.get("FA", [0] * 16),
+                "SPL": cfg.get("SPL", [60, 85, 50, 85]),
+                "MA": cfg.get("MA", [0] * 16),
+            }
+            stored = True
+        return stored
 
     async def handle_command(self, client, command: dict) -> dict | bool:
         """Write a command dict to the device and read back verified status."""
