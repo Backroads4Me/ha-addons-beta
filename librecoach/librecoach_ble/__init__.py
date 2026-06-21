@@ -61,6 +61,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             )
 
     hass.bus.async_listen_once("homeassistant_started", _on_ha_started)
+
+    async def _on_ha_stop(event=None):
+        manager = hass.data.get(DOMAIN, {}).get("manager")
+        if manager:
+            _LOGGER.info("HA stopping — shutting down BLE bridge")
+            await manager.stop()
+
+    hass.bus.async_listen_once("homeassistant_stop", _on_ha_stop)
     _LOGGER.info("BLE bridge will activate when MQTT config message arrives")
 
     return True
