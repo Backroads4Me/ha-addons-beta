@@ -9,7 +9,6 @@ log = logging.getLogger("vehicle_bridge.mqtt")
 
 class MqttClient:
     def __init__(self, config):
-        self.config = config
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
             client_id="vehicle_bridge",
