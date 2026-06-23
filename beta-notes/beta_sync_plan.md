@@ -110,6 +110,52 @@ beta-notes/mirror.sh --apply    # mirror beta/librecoach → prod/librecoach
   differ on `version:` / `image:` only. Anything else flagged is a real option/schema change
   you must port to prod by hand (see below).
 
+## Developer note: `beta_enabled` config option removed
+
+The `beta_enabled` option (and its `schema:` entry) has been removed from
+`librecoach/config.yaml` in beta. It was hiding an unused feature toggle and is no
+longer needed.
+
+### One-time production config hand-port
+
+At the next beta-to-production sync, remove the corresponding lines from
+`/home/ted/src/librecoach/ha-addons/librecoach/config.yaml`:
+
+```yaml
+# remove from options:
+beta_enabled: false
+
+# remove from schema:
+beta_enabled: bool
+```
+
+Existing installations that stored `beta_enabled: true` will simply have an unknown key,
+which HA silently ignores. No migration is needed.
+
+---
+
+## Developer note: make Victron fully opt-in
+
+The add-on now defaults `victron_enabled` to `false`. Existing installations that already
+store `victron_enabled: true` remain enabled; the new default applies to new installations
+and installations without a saved value.
+
+### One-time production config hand-port
+
+At the next beta-to-production sync, manually change only the Victron default in
+`/home/ted/src/librecoach/ha-addons/librecoach/config.yaml`:
+
+```yaml
+victron_enabled: false
+```
+
+Do not copy beta's entire `config.yaml`: production must retain its own `version:` and
+non-beta `image:` values. This hand-port is needed once because `config.yaml` is excluded from
+`beta-notes/mirror.sh`; afterward its drift check should report only the expected version and
+image differences.
+
+---
+
 ## config.yaml (Option A — excluded, hand-ported)
 
 `config.yaml` is never copied. When you change `options:`/`schema:` in beta (e.g. a new

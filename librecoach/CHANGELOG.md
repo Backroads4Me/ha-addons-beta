@@ -1,5 +1,9 @@
 ### Unreleased
 
+**Configuration**
+
+- Changed the Victron integration to opt-in for new installations; existing saved configuration is preserved
+
 **Hughes Power Watchdog BLE bridge**
 
 - Added default-off Bluetooth telemetry support for Hughes Power Watchdog Gen 1 and Gen 2 devices, including 30A and 50A models

@@ -25,7 +25,7 @@ configuration:
     description: "Connects to supported Hughes Power Watchdog surge protectors via Bluetooth. For setup, keep only your Watchdog nearby."
   victron_enabled:
     name: "Enable Victron Energy Integration"
-    description: "Requires a GX device with MQTT enabled."
+    description: "Requires a GX device with MQTT enabled. Disabled by default."
   rvc_time_sync_enabled:
     name: "Enable RV-C Network Time Sync"
     description: "Periodically broadcasts the current system time to the RV-C network. Helps keep RV devices time-synchronized. Defaults to disabled."

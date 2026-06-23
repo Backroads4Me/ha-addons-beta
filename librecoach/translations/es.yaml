@@ -25,7 +25,7 @@ configuration:
     description: "Se conecta a protectores Hughes Power Watchdog compatibles por Bluetooth. Para configurarlo, mantenga cerca solo su Watchdog."
   victron_enabled:
     name: "Activar integración Victron Energy"
-    description: "Requiere un dispositivo GX con MQTT activado."
+    description: "Requiere un dispositivo GX con MQTT activado. Desactivado de forma predeterminada."
   rvc_time_sync_enabled:
     name: "Activar sincronización de hora de red RV-C"
     description: "Transmite periódicamente la hora actual del sistema a la red RV-C. Ayuda a mantener los dispositivos del RV sincronizados en hora. Desactivado de forma predeterminada."
