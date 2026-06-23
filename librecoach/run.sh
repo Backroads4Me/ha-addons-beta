@@ -1131,6 +1131,13 @@ mark_nodered_managed "$FLOWS_HASH"
 # Installation Summary
 # ========================
 # ========================
+bashio::log.info ""
+bashio::log.info "       _     _ _            ____                 _     "
+bashio::log.info "      | |   (_) |__  _ __  / ___|___   __ _  ___| |__  "
+bashio::log.info "      | |   | | '_ \| '__|| |   / _ \ / _\` |/ __| '_ \ "
+bashio::log.info "      | |___| | |_) | |   | |__| (_) | (_| | (__| | | |"
+bashio::log.info "      |_____|_|_.__/|_|    \____\___/ \__,_|\___|_| |_|"
+bashio::log.info ""
 bashio::log.info "╔════════════════════════════════════════════════════════════╗"
 bashio::log.info "║           LibreCoach Installation Summary                  ║"
 bashio::log.info "╠════════════════════════════════════════════════════════════╣"
