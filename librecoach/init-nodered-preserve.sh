@@ -66,6 +66,24 @@ cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 # preserving flows must not freeze it. Required for the persistent context dir.
 cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 
+# Developer override: when this install is flagged as a dev environment, enable
+# Node-RED projects. Canonical settings.js ships projects disabled for end users.
+# A maintainer drops an empty sentinel file at the path below (in their own
+# /share, never committed to the repo) to mark the install as a dev environment;
+# additional dev-only behaviors can gate on the same marker in future.
+if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
+    node -e '
+        const fs = require("fs");
+        const p = "/config/settings.js";
+        let s = fs.readFileSync(p, "utf8");
+        const patched = s.replace(/projects:\s*\{\s*enabled:\s*false/, "projects: { enabled: true");
+        if (patched !== s) { fs.writeFileSync(p, patched); process.exit(0); }
+        process.exit(1);
+    ' 2>/dev/null \
+        && echo "LibreCoach: Node-RED projects ENABLED (developer sentinel present)" \
+        || echo "LibreCoach: projects sentinel present but settings.js already had projects enabled or pattern not found"
+fi
+
 # Migrate persistent context keys from the old default location (/config/context)
 # to the new explicit location (/share/.librecoach/context), which survives add-on
 # reinstalls. Only fills in keys absent from the destination — never overwrites.

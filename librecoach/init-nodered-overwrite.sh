@@ -156,6 +156,24 @@ cp "$SOURCE_DIR/flows_cred.json" /config/flows_cred.json
 # or specific node configurations required by the bundled flows.
 cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 
+# Developer override: when this install is flagged as a dev environment, enable
+# Node-RED projects. Canonical settings.js ships projects disabled for end users.
+# A maintainer drops an empty sentinel file at the path below (in their own
+# /share, never committed to the repo) to mark the install as a dev environment;
+# additional dev-only behaviors can gate on the same marker in future.
+if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
+    node -e '
+        const fs = require("fs");
+        const p = "/config/settings.js";
+        let s = fs.readFileSync(p, "utf8");
+        const patched = s.replace(/projects:\s*\{\s*enabled:\s*false/, "projects: { enabled: true");
+        if (patched !== s) { fs.writeFileSync(p, patched); process.exit(0); }
+        process.exit(1);
+    ' 2>/dev/null \
+        && echo "LibreCoach: Node-RED projects ENABLED (developer sentinel present)" \
+        || echo "LibreCoach: projects sentinel present but settings.js already had projects enabled or pattern not found"
+fi
+
 # Record the hashes of what was just deployed so the next run can detect drift.
 {
     for f in flows.json flows_cred.json package.json; do
