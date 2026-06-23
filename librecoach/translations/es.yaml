@@ -25,7 +25,7 @@ configuration:
     description: "Se conecta a protectores Hughes Power Watchdog compatibles por Bluetooth. Para configurarlo, mantenga cerca solo su Watchdog."
   victron_enabled:
     name: "Activar integración Victron Energy"
-    description: "Requiere un dispositivo GX con MQTT activado. Desactivado de forma predeterminada."
+    description: "Requiere un dispositivo GX con MQTT activado."
   rvc_time_sync_enabled:
     name: "Activar sincronización de hora de red RV-C"
     description: "Transmite periódicamente la hora actual del sistema a la red RV-C. Ayuda a mantener los dispositivos del RV sincronizados en hora. Desactivado de forma predeterminada."
@@ -40,10 +40,10 @@ configuration:
     description: "Activa el registro detallado de depuración para solución de problemas."
   mqtt_user:
     name: "Usuario MQTT (Avanzado)"
-    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar.Nombre de usuario para autenticación MQTT entre LibreCoach y Mosquitto."
+    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar."
   mqtt_pass:
     name: "Contraseña MQTT (Avanzado)"
-    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar.Contraseña para autenticación MQTT entre LibreCoach y Mosquitto."
+    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar."
   can_interface:
     name: "Interfaz CAN (Avanzado)"
-    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar.Nombre de la interfaz del sistema para el adaptador CAN (ej. can0)."
+    description: "⚠️ Configuración avanzada — normalmente no se debe cambiar."
