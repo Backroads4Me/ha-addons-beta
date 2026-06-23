@@ -39,11 +39,11 @@ configuration:
     name: "Enable Debug Logging"
     description: "Enables detailed debug logging for troubleshooting."
   mqtt_user:
-    name: "MQTT User"
-    description: "Username for MQTT authentication."
+    name: "MQTT User (Advanced)"
+    description: "⚠️ Advanced setting — this normally should not be changed.Username for MQTT authentication between LibreCoach and Mosquitto."
   mqtt_pass:
-    name: "MQTT Password"
-    description: "Password for MQTT authentication."
+    name: "MQTT Password (Advanced)"
+    description: "⚠️ Advanced setting — this normally should not be changed.Password for MQTT authentication between LibreCoach and Mosquitto."
   can_interface:
-    name: "CAN Interface"
-    description: "System interface name for the CAN adapter."
+    name: "CAN Interface (Advanced)"
+    description: "⚠️ Advanced setting — this normally should not be changed.System interface name for the CAN adapter (e.g. can0)."

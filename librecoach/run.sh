@@ -332,42 +332,20 @@ wait_for_nodered_api() {
   local port=1880
   local retries=60
   local url="http://${host}:${port}/"
-  local port_open=false
 
-  # Phase 1 (prerequisite only): wait for the HTTP port to open.
   while [ $retries -gt 0 ]; do
     log_debug "Checking for Node-RED API at $url"
     # A 401 error will still return 0 here, which is what we want.
     if curl -sS -m 3 "$url" >/dev/null 2>&1; then
-      port_open=true
-      break
+      bashio::log.info "   Node-RED is ready"
+      return 0
     fi
     sleep 3
     ((retries--))
   done
 
-  if [ "$port_open" != "true" ]; then
-    bashio::log.error "   ❌ Node-RED timeout: HTTP port never opened at $url"
-    return 1
-  fi
-
-  # Phase 2: an open port only means the runtime is up — flows may still be
-  # loading. Wait for the retained readiness topic that the LibreCoach flows
-  # publish after loading and registering their MQTT subscriptions.
-  bashio::log.info "   Node-RED port is open. Waiting for LibreCoach flows to report ready"
-  mqtt_auth_args
-  if timeout 90 mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" "${MQTT_AUTH_ARGS[@]}" \
-       -t "librecoach/nodered/ready" -C 1 >/dev/null 2>&1; then
-    bashio::log.info "   LibreCoach flows are ready"
-    return 0
-  fi
-
-  # Intentionally non-fatal: flows from releases that predate the readiness
-  # topic never publish it. Distinguish this timeout from a closed port above.
-  bashio::log.warning "   ⚠️  Node-RED port is open but no readiness message on librecoach/nodered/ready after 90s"
-  bashio::log.warning "      (Flows may still be loading, or this flow version may not publish readiness yet.)"
-  sleep 5
-  return 0
+  bashio::log.error "   ❌ Node-RED timeout: HTTP port never opened at $url"
+  return 1
 }
 
 
@@ -1104,18 +1082,8 @@ elif [ "$MIGRATION_DETECTED" = "true" ] && [ "$PREVENT_FLOW_UPDATES" = "true" ];
     bashio::log.info "   Migration detected — skipping Node-RED restart (preserve mode active)."
 fi
 
-# Clear any stale retained readiness flag before a (re)start so
-# wait_for_nodered_api can't be satisfied by a message from a previous
-# Node-RED run. If Node-RED keeps running untouched, its retained readiness
-# message is still valid and must be left alone.
-# Intentionally non-fatal: the topic may simply not exist yet.
-clear_nodered_ready_flag() {
-  mqtt_pub -t "librecoach/nodered/ready" -n 2>/dev/null || true
-}
-
 # Ensure Node-RED starts/restarts to apply init commands
 if [ "$NEEDS_RESTART" = "true" ]; then
-  clear_nodered_ready_flag
   if is_running "$SLUG_NODERED"; then
     bashio::log.info "   Restarting Node-RED to apply new configuration"
     restart_addon "$SLUG_NODERED" || exit 1
@@ -1132,7 +1100,6 @@ if [ "$NEEDS_RESTART" = "true" ]; then
   fi
 else
   if ! is_running "$SLUG_NODERED"; then
-    clear_nodered_ready_flag
     start_addon "$SLUG_NODERED" || exit 1
   fi
 fi
