@@ -168,4 +168,49 @@ if [ -f "$SOURCE_DIR/LICENSE" ]; then
   cp "$SOURCE_DIR/LICENSE" "$PROJECT_DIR/LICENSE"
 fi
 
+# Migrate persistent context keys from the old default location (/config/context/global)
+# to the new explicit location (/share/.librecoach/context/global), which survives
+# add-on reinstalls. Only fills in keys absent from the destination — never overwrites.
+node -e '
+  const fs = require("fs");
+  const OLD = "/config/context/global/global.json";
+  const NEW_DIR = "/share/.librecoach/context/global";
+  const NEW = NEW_DIR + "/global.json";
+  const KEYS = [
+    "rv_manufacturer", "rv_model", "rv_year", "rv_other",
+    "victronPortalId",
+    "dimmableLights", "dimmableAcLoads", "dimmableIndicators",
+    "dcDimmerStatusBackedInstances", "floorHeatLevelMap"
+  ];
+
+  if (!fs.existsSync(OLD)) process.exit(0);
+
+  let oldCtx;
+  try { oldCtx = JSON.parse(fs.readFileSync(OLD, "utf8")); }
+  catch (e) { process.exit(0); }
+
+  const toMigrate = {};
+  for (const k of KEYS) {
+    if (oldCtx[k] !== undefined) toMigrate[k] = oldCtx[k];
+  }
+  if (Object.keys(toMigrate).length === 0) process.exit(0);
+
+  fs.mkdirSync(NEW_DIR, { recursive: true });
+
+  let newCtx = {};
+  if (fs.existsSync(NEW)) {
+    try { newCtx = JSON.parse(fs.readFileSync(NEW, "utf8")); } catch (e) {}
+  }
+
+  let count = 0;
+  for (const [k, v] of Object.entries(toMigrate)) {
+    if (newCtx[k] === undefined) { newCtx[k] = v; count++; }
+  }
+
+  if (count > 0) {
+    fs.writeFileSync(NEW, JSON.stringify(newCtx, null, 4));
+    console.log("LibreCoach: Migrated " + count + " context key(s) to /share/.librecoach/context/");
+  }
+' 2>/dev/null || echo "LibreCoach: Context migration skipped"
+
 echo "LibreCoach Node-RED initialization complete"
