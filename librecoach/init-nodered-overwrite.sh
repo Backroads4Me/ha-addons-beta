@@ -156,8 +156,8 @@ cp "$SOURCE_DIR/flows_cred.json" /config/flows_cred.json
 # enabled, MQTT env injection, etc.) that the canonical file would clobber, so the
 # .librecoach-dev sentinel (in the maintainer's own /share, never committed)
 # exempts settings.js from being overwritten.
-if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
-    echo "LibreCoach: Developer environment detected (.librecoach-dev) — leaving settings.js untouched"
+if [ -f "/share/.librecoach-dev" ]; then
+    echo "LibreCoach: Developer environment detected (/share/.librecoach-dev) — leaving settings.js untouched"
 else
     cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 fi
@@ -178,8 +178,8 @@ fi
 # to the new explicit location (/share/.librecoach/context/global), which survives
 # add-on reinstalls. Only fills in keys absent from the destination — never overwrites.
 # Skipped on developer environments, which manage their own context configuration.
-if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
-    echo "LibreCoach: Developer environment detected (.librecoach-dev) — skipping context migration"
+if [ -f "/share/.librecoach-dev" ]; then
+    echo "LibreCoach: Developer environment detected (/share/.librecoach-dev) — skipping context migration"
 else
 node -e '
   const fs = require("fs");

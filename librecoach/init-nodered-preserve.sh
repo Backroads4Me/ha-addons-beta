@@ -66,8 +66,8 @@ cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 # settings.js carries dev-only configuration (Node-RED projects enabled, MQTT env
 # injection, etc.) that the canonical file would clobber. The sentinel lives in the
 # maintainer's own /share and is never committed to the repo.
-if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
-    echo "LibreCoach: Developer environment detected (.librecoach-dev) — leaving settings.js and context untouched"
+if [ -f "/share/.librecoach-dev" ]; then
+    echo "LibreCoach: Developer environment detected (/share/.librecoach-dev) — leaving settings.js and context untouched"
 else
 
 # Deploy settings.js even in preserve mode. It is LibreCoach-managed runtime

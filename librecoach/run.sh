@@ -476,11 +476,12 @@ else
 fi
 
 # Deploy project files. The --exclude keeps any legacy credential_secret backup
-# alive at the old path during the migration transition. The .librecoach-dev
-# exclude preserves the developer-environment sentinel, which lives in this
-# directory but is not part of the bundled project.
+# alive at the old path during the migration transition.
+# Note: the developer-environment sentinel deliberately lives OUTSIDE this
+# directory (at /share/.librecoach-dev) so that rsync --delete can never remove
+# it, regardless of excludes.
 run_required "Failed to deploy bundled Node-RED project to $PROJECT_PATH" \
-    rsync -a --delete --exclude=.backup_credential_secret --exclude=.librecoach-dev "$BUNDLED_PROJECT/" "$PROJECT_PATH/"
+    rsync -a --delete --exclude=.backup_credential_secret "$BUNDLED_PROJECT/" "$PROJECT_PATH/"
 
 # Select the appropriate init script based on configuration
 PREVENT_FLOW_UPDATES=$(bashio::config 'prevent_flow_updates')
