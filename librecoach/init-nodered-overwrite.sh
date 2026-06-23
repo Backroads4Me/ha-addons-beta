@@ -151,27 +151,15 @@ fi
 cp "$SOURCE_DIR/artifact/flows.json" /config/flows.json
 cp "$SOURCE_DIR/flows_cred.json" /config/flows_cred.json
 
-# Copy settings.js to Node-RED config
-# This allows LibreCoach to inject custom environment variables, global contexts,
-# or specific node configurations required by the bundled flows.
-cp "$SOURCE_DIR/data/settings.js" /config/settings.js
-
-# Developer override: when this install is flagged as a dev environment, enable
-# Node-RED projects. Canonical settings.js ships projects disabled for end users.
-# A maintainer drops an empty sentinel file at the path below (in their own
-# /share, never committed to the repo) to mark the install as a dev environment;
-# additional dev-only behaviors can gate on the same marker in future.
+# Copy settings.js to Node-RED config, unless this is a developer environment.
+# A maintainer's settings.js carries dev-only configuration (Node-RED projects
+# enabled, MQTT env injection, etc.) that the canonical file would clobber, so the
+# .librecoach-dev sentinel (in the maintainer's own /share, never committed)
+# exempts settings.js from being overwritten.
 if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
-    node -e '
-        const fs = require("fs");
-        const p = "/config/settings.js";
-        let s = fs.readFileSync(p, "utf8");
-        const patched = s.replace(/projects:\s*\{\s*enabled:\s*false/, "projects: { enabled: true");
-        if (patched !== s) { fs.writeFileSync(p, patched); process.exit(0); }
-        process.exit(1);
-    ' 2>/dev/null \
-        && echo "LibreCoach: Node-RED projects ENABLED (developer sentinel present)" \
-        || echo "LibreCoach: projects sentinel present but settings.js already had projects enabled or pattern not found"
+    echo "LibreCoach: Developer environment detected (.librecoach-dev) — leaving settings.js untouched"
+else
+    cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 fi
 
 # Record the hashes of what was just deployed so the next run can detect drift.
@@ -189,6 +177,10 @@ fi
 # Migrate persistent context keys from the old default location (/config/context/global)
 # to the new explicit location (/share/.librecoach/context/global), which survives
 # add-on reinstalls. Only fills in keys absent from the destination — never overwrites.
+# Skipped on developer environments, which manage their own context configuration.
+if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
+    echo "LibreCoach: Developer environment detected (.librecoach-dev) — skipping context migration"
+else
 node -e '
   const fs = require("fs");
   const OLD = "/config/context/global/global.json";
@@ -230,5 +222,6 @@ node -e '
     console.log("LibreCoach: Migrated " + count + " context key(s) to /share/.librecoach/context/");
   }
 ' 2>/dev/null || echo "LibreCoach: Context migration skipped"
+fi
 
 echo "LibreCoach Node-RED initialization complete"

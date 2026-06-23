@@ -61,28 +61,19 @@ mkdir -p "$PROJECT_DIR/data"
 # Copy RVC decoder data
 cp -r "$SOURCE_DIR/data/." "$PROJECT_DIR/data/"
 
+# Developer environments are left fully alone: when the dev sentinel is present we
+# never touch /config/settings.js or run the context migration. A maintainer's
+# settings.js carries dev-only configuration (Node-RED projects enabled, MQTT env
+# injection, etc.) that the canonical file would clobber. The sentinel lives in the
+# maintainer's own /share and is never committed to the repo.
+if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
+    echo "LibreCoach: Developer environment detected (.librecoach-dev) — leaving settings.js and context untouched"
+else
+
 # Deploy settings.js even in preserve mode. It is LibreCoach-managed runtime
 # config (context storage location, env injection) — not user flow content — so
 # preserving flows must not freeze it. Required for the persistent context dir.
 cp "$SOURCE_DIR/data/settings.js" /config/settings.js
-
-# Developer override: when this install is flagged as a dev environment, enable
-# Node-RED projects. Canonical settings.js ships projects disabled for end users.
-# A maintainer drops an empty sentinel file at the path below (in their own
-# /share, never committed to the repo) to mark the install as a dev environment;
-# additional dev-only behaviors can gate on the same marker in future.
-if [ -f "$SOURCE_DIR/.librecoach-dev" ]; then
-    node -e '
-        const fs = require("fs");
-        const p = "/config/settings.js";
-        let s = fs.readFileSync(p, "utf8");
-        const patched = s.replace(/projects:\s*\{\s*enabled:\s*false/, "projects: { enabled: true");
-        if (patched !== s) { fs.writeFileSync(p, patched); process.exit(0); }
-        process.exit(1);
-    ' 2>/dev/null \
-        && echo "LibreCoach: Node-RED projects ENABLED (developer sentinel present)" \
-        || echo "LibreCoach: projects sentinel present but settings.js already had projects enabled or pattern not found"
-fi
 
 # Migrate persistent context keys from the old default location (/config/context)
 # to the new explicit location (/share/.librecoach/context), which survives add-on
@@ -128,5 +119,7 @@ node -e '
     console.log("LibreCoach: Migrated " + count + " context key(s) to /share/.librecoach/context/");
   }
 ' 2>/dev/null || echo "LibreCoach: Context migration skipped"
+
+fi
 
 echo "LibreCoach Node-RED initialization (Preserve Mode) complete"
