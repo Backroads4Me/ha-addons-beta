@@ -26,9 +26,6 @@ configuration:
   victron_enabled:
     name: "Activar integración Victron Energy"
     description: "Requiere un dispositivo GX con MQTT activado."
-  beta_enabled:
-    name: "Activar funciones beta"
-    description: "Activa funciones experimentales cuando están disponibles. Úselo bajo su propio riesgo."
   rvc_time_sync_enabled:
     name: "Activar sincronización de hora de red RV-C"
     description: "Transmite periódicamente la hora actual del sistema a la red RV-C. Ayuda a mantener los dispositivos del RV sincronizados en hora. Desactivado de forma predeterminada."

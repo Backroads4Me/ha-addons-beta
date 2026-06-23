@@ -35,7 +35,6 @@ options:
   microair_password: ""
   hughes_enabled: false
   victron_enabled: true
-  beta_enabled: false
   rvc_time_sync_enabled: false
   confirm_nodered_takeover: false
   prevent_flow_updates: false
@@ -53,7 +52,6 @@ schema:
   microair_password: password?
   hughes_enabled: bool
   victron_enabled: bool
-  beta_enabled: bool
   rvc_time_sync_enabled: bool
   confirm_nodered_takeover: bool
   prevent_flow_updates: bool

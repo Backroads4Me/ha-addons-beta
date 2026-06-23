@@ -42,7 +42,9 @@ MQTT_USER=$(bashio::config 'mqtt_user')
 MQTT_PASS=$(bashio::config 'mqtt_pass')
 DEBUG_LOGGING=$(bashio::config 'debug_logging')
 VICTRON_ENABLED=$(bashio::config 'victron_enabled')
-BETA_ENABLED=$(bashio::config 'beta_enabled')
+# Beta features are currently disabled and intentionally have no UI option.
+# Keep publishing false to clear any retained true value from older installs.
+BETA_ENABLED=false
 MICROAIR_ENABLED=$(bashio::config 'microair_enabled')
 HUGHES_ENABLED=$(bashio::config 'hughes_enabled')
 GEO_ENABLED=$(bashio::config 'geo_enabled')
