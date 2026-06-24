@@ -244,6 +244,7 @@ run_orchestrator() {
 			((retries--))
 		done
 		bashio::log.warning "   ⚠️  $slug started but state is not 'started' yet"
+		return 1
 	}
 
 	set_options() {
@@ -961,7 +962,8 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
 		fi
 	fi
 
-	# Save previous state before marking managed (needed for flow update detection later)
+	# Save previous state before marking managed (needed for update detection later)
+	PREVIOUS_VERSION=$(get_managed_version)
 	PREVIOUS_FLOWS_HASH=$(get_managed_hash)
 	PREVIOUS_PRESERVE_MODE=$(get_managed_preserve_mode)
 	FLOWS_HASH=$(get_flows_hash)
@@ -1035,7 +1037,6 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
 
 	# Check if flows need updating (requiring a restart to pick up)
 	if [ "$PREVENT_FLOW_UPDATES" != "true" ] && [ "$NEEDS_RESTART" = "false" ]; then
-		PREVIOUS_VERSION=$(get_managed_version)
 		if [ -n "$PREVIOUS_VERSION" ] && [ "$PREVIOUS_VERSION" != "$ADDON_VERSION" ]; then
 			# Version changed — always restart to ensure init script runs with latest bundled flows
 			bashio::log.info "   Add-on version changed ($PREVIOUS_VERSION → $ADDON_VERSION). Restarting Node-RED."
@@ -1124,12 +1125,8 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
 	bashio::log.info "   Setting Node-RED to start on boot with watchdog"
 	set_boot_auto "$SLUG_NODERED" || bashio::log.warning "   ⚠️  Could not set Node-RED to auto-start"
 
-	# Mark/update Node-RED as managed by LibreCoach (updates version on upgrades)
-	mark_nodered_managed "$FLOWS_HASH"
-
 	# ========================
 	# Installation Summary
-	# ========================
 	# ========================
 	bashio::log.info ""
 	bashio::log.info "       _     _ _                 ____                 _"

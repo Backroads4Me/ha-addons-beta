@@ -1,59 +1,28 @@
-## Description
+## Summary
 
-<!-- Provide a clear and concise description of your changes -->
+<!-- What changed, and why? -->
 
-## Addon
-
-<!-- Check the addon(s) affected by this PR -->
+## Scope
 
 - [ ] CAN to MQTT Bridge
 - [ ] LibreCoach
-- [ ] Repository/General
+- [ ] Repository tooling or documentation
 
-## Type of Change
+## Compatibility
 
-<!-- Check all that apply -->
+<!-- Describe user-visible, configuration, entity-ID, or migration effects. Write "None" if there are none. -->
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] Documentation update
-- [ ] Configuration change
-- [ ] Dependency update
+## Validation
 
-## Testing
+<!-- List the commands and hardware checks that passed. -->
 
-<!-- Describe the tests you ran to verify your changes -->
+## Release readiness
 
-- [ ] Tested on actual hardware
-- [ ] Tested configuration changes
-- [ ] Checked addon logs for errors
-- [ ] Verified backward compatibility
+- [ ] User-facing changes are documented in `CHANGELOG.md` when applicable.
+- [ ] Configuration or usage changes are documented in `DOCS.md` when applicable.
+- [ ] Required companion repository changes are merged and referenced.
+- [ ] No release, tag, or production merge is included without explicit approval.
 
-**Test Environment:**
+## Related issues
 
-- Home Assistant Version:
-- Hardware:
-- Addon Version:
-
-## Checklist
-
-<!-- Check all that apply -->
-
-- [ ] My code follows the existing code style
-- [ ] I have updated the DOCS.md file (if configuration or usage changed)
-- [ ] I have updated the CHANGELOG.md file
-- [ ] I have updated the README.md (if needed)
-- [ ] My changes generate no new warnings or errors
-- [ ] Any dependent changes have been merged and published
-
-## Related Issues
-
-<!-- Link any related issues -->
-
-Fixes #
-Related to #
-
-## Additional Notes
-
-<!-- Any additional information, context, or screenshots -->
+<!-- For example: Fixes #123 -->

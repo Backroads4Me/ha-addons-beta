@@ -1,26 +1,93 @@
-### Unreleased
+### 2.0.0 (Jun 24, 2026)
 
-**Configuration**
+This release adds a Hughes Power Watchdog Bluetooth integration, reworks
+Victron entity naming, and hardens startup, upgrades, and credential handling.
 
-- Changed the Victron integration to opt-in for new installations; existing saved configuration is preserved
+**⚠️ Breaking change — Victron entities are recreated**
 
-**Hughes Power Watchdog BLE bridge**
+Victron entity IDs and naming have been reworked. Upgrading requires the
+existing Victron entities to be deleted and recreated with new IDs, so their
+history and any dashboard, automation, script, scene, or template references to
+them do **not** carry over automatically.
 
-- Added default-off Bluetooth telemetry support for Hughes Power Watchdog Gen 1 and Gen 2 devices, including 30A and 50A models
-- Added V2 relay, neutral-detection, and energy-reset command bridging over MQTT; Gen 1 remains read-only
-- Added independent Micro-Air and Hughes enable controls so disabling one integration releases only its BLE devices
-- Added protocol fixtures and lifecycle tests; Home Assistant entity creation remains deferred to the planned Node-RED work
+- Before upgrading: create a full Home Assistant backup and note which Victron
+  entities your dashboards and automations use.
+- After upgrading: let LibreCoach start with Victron enabled, then disable the
+  Victron integration, save, and restart to remove the old entities; re-enable,
+  save, and restart to create the new ones. Then update any cards, automations,
+  scripts, scenes, and templates that referenced the old Victron entity IDs, and
+  regenerate the AI dashboard prompt if you use it.
+- Victron is now **disabled by default** on new installations; enable it after
+  configuring MQTT on your Victron GX device.
 
-**Fixes (startup hardening, review items C-1 … C-8)**
+**Hughes Power Watchdog (new)**
 
-- Startup failures now abort deterministically with clear logs instead of continuing with partial deployment state (`set -e` was inert)
-- The original Node-RED `credential_secret` backup now lives in add-on private `/data` storage and can no longer be destroyed by restarts; existing backups are migrated automatically
-- MQTT usernames/passwords containing spaces or shell metacharacters now work throughout; values with newlines are rejected with a clear error
-- MQTT credential injection into `settings.js` no longer uses `sed` and cannot corrupt the file; a failed `flows_cred.json` re-encryption can no longer leave a corrupted file behind
-- Local edits to Node-RED flows are backed up to `/config/librecoach-backups/<timestamp>/` before LibreCoach overwrites them; user-added `package.json` dependencies are preserved across updates
-- Startup now waits for LibreCoach flows to report ready via the retained `librecoach/nodered/ready` topic instead of only an open Node-RED port (requires a flow version that publishes the topic; older flows fall back to the previous port-open behavior after 90 seconds)
-- The BLE integration's automated cleanup now requires a healthy Supervisor and repeated confirmations spread across hours, and backs up `configuration.yaml` before editing it
-- A missing MQTT integration no longer causes a crash loop: the add-on stays alive, polls, and resumes setup automatically; the self-watchdog is enabled only after a successful setup
+- Added an optional Bluetooth integration for Hughes Power Watchdog Gen 1 and
+  Gen 2 devices (30A and 50A), with entities for electrical telemetry,
+  connection diagnostics, and device availability.
+- Added Gen 2 controls for the power relay, neutral detection, and energy reset
+  (Gen 1 remains read-only), plus per-device reconnect and clear-error controls.
+- Hughes and Micro-Air can now be enabled independently; disabling one releases
+  only its own Bluetooth devices and entities.
+
+**Victron**
+
+- Renamed and restructured Victron entity IDs, friendly names, units, and paths.
+- Added a writable AC input current limit (number entity).
+- Victron entities now report unavailable when the GX device is offline instead
+  of showing stale values, and the GX MQTT connection stays disconnected while
+  the integration is disabled.
+- Disabling Victron now reliably removes every retained Victron entity, including
+  ones left behind by older versions.
+
+**Micro-Air thermostats**
+
+- Climate modes are now derived from each thermostat's reported capabilities.
+- More reliable Bluetooth connections, retries, and recovery after transient
+  failures; BLE monitoring no longer blocks Home Assistant startup or shutdown.
+- Added per-device availability, last-success, failure-count, and last-error
+  diagnostics; outdoor temperature now handles unavailable readings cleanly.
+
+**RV-C and generator**
+
+- Added generator start/stop commands and running, active-demand,
+  demand-summary, and coolant-temperature entities.
+- RV-C entities now report unavailable when the CAN interface is offline.
+- Improved GeoBridge startup behavior and RV-C network time-sync reliability.
+
+**Startup, upgrades, and recovery**
+
+- Startup now fails fast with a clear message instead of continuing in a
+  partially deployed state.
+- A missing Home Assistant MQTT integration no longer causes a restart loop;
+  LibreCoach waits, reports what is needed, and resumes when MQTT is available.
+- Local Node-RED flow edits are backed up to
+  `/config/librecoach-backups/<timestamp>/` before being overwritten, and
+  user-added `package.json` dependencies are preserved across updates.
+- LibreCoach-managed Node-RED installs are now recognized on upgrade without a
+  false "takeover" prompt, and integration state survives a Node-RED reinstall.
+
+**Configuration and credentials**
+
+- MQTT usernames and passwords containing spaces or special characters now work
+  everywhere; credentials with newline characters are rejected with a clear error.
+- Added the Hughes enable option, reorganized integration settings, clarified
+  RV-C time-sync wording, and marked MQTT credentials and CAN interface as
+  advanced settings.
+- Removed the unused beta-features option.
+
+**Dashboard and entity tools**
+
+- Improved the AI dashboard prompts (standard and Mushroom cards), entity
+  exports, and formatting, including guidance for coaches without Victron
+  hardware.
+
+**Other fixes and improvements**
+
+- Numerous startup-hardening, Bluetooth cleanup safety, and build
+  reproducibility fixes. `configuration.yaml` is now backed up before any
+  automated cleanup, and enabling or disabling an integration no longer restarts
+  Home Assistant just to release Bluetooth devices.
 
 ### 1.2.20 (Jun 7, 2026)
 
