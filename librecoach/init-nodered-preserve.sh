@@ -77,30 +77,26 @@ cp "$SOURCE_DIR/data/settings.js" /config/settings.js
 
 # Migrate persistent context keys from the old default location (/config/context)
 # to the new explicit location (/share/.librecoach/context), which survives add-on
-# reinstalls. Only fills in keys absent from the destination — never overwrites.
+# reinstalls. Carries forward ALL persisted keys (fill-if-absent, never overwrites)
+# except those redesigned or reset in 2.0 (see EXCLUDE). Copying all keys — rather
+# than a hand-maintained whitelist — preserves dynamic per-instance keys (e.g.
+# dimmerBrightness_*, indicatorState_*) and any future keys.
 node -e '
   const fs = require("fs");
   const OLD = "/config/context/global/global.json";
   const NEW_DIR = "/share/.librecoach/context/global";
   const NEW = NEW_DIR + "/global.json";
-  const KEYS = [
-    "rv_manufacturer", "rv_model", "rv_year", "rv_other",
-    "victronPortalId",
-    "dimmableLights", "dimmableAcLoads", "dimmableIndicators",
-    "dcDimmerStatusBackedInstances", "floorHeatLevelMap"
-  ];
+  // Keys redesigned or intentionally reset in 2.0 — do NOT carry forward.
+  const EXCLUDE = new Set([
+    "victronDevices", "betaDiscoveryTopics",
+    "recordUnknown", "recordUnknownLog", "recordUnknownStart"
+  ]);
 
   if (!fs.existsSync(OLD)) process.exit(0);
 
   let oldCtx;
   try { oldCtx = JSON.parse(fs.readFileSync(OLD, "utf8")); }
   catch (e) { process.exit(0); }
-
-  const toMigrate = {};
-  for (const k of KEYS) {
-    if (oldCtx[k] !== undefined) toMigrate[k] = oldCtx[k];
-  }
-  if (Object.keys(toMigrate).length === 0) process.exit(0);
 
   fs.mkdirSync(NEW_DIR, { recursive: true });
 
@@ -110,7 +106,8 @@ node -e '
   }
 
   let count = 0;
-  for (const [k, v] of Object.entries(toMigrate)) {
+  for (const [k, v] of Object.entries(oldCtx)) {
+    if (EXCLUDE.has(k)) continue;
     if (newCtx[k] === undefined) { newCtx[k] = v; count++; }
   }
 
