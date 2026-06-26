@@ -1,16 +1,12 @@
 # LibreCoach
 
-*RV-C bridge · Mosquitto MQTT · Node-RED · LibreCoach flows — managed as one system.*
-
-This page covers setup decisions and recovery steps that are not obvious from
-the Configuration tab.
-
----
+Use this page for first-start steps, setup choices, and recovery notes that are
+not obvious from the Configuration tab.
 
 ## First start
 
-Keep the **Log** tab open the first time LibreCoach starts. Setup may pause to
-wait for one action:
+Keep the **Log** tab open the first time LibreCoach starts. Setup may pause
+until Home Assistant is ready for MQTT discovery.
 
 ### Add the MQTT integration
 
@@ -21,15 +17,17 @@ Assistant before it can be used.
 
 1. Go to **Settings → Devices & services**.
 2. Find **MQTT** under **Discovered**, select **Add**, and then **Submit**.
-3. Go to **Settings → Add-ons → LibreCoach** and click **Restart**.
+3. Return to **Settings → Add-ons → LibreCoach** and watch the log. Setup
+   should resume automatically. If it does not resume within a minute, click
+   **Restart**.
 
 If MQTT is not offered under Discovered, confirm that **Mosquitto broker** is
 running, then reload **Settings → Devices & services**.
 
-> **Existing Node-RED installation:** If setup stops and says Node-RED already
-> exists, that is a safety stop, not an install failure. See
-> [Existing Node-RED Installation](#existing-node-red-installation) at the
-> bottom of this page.
+### Existing Node-RED installation
+
+If setup stops and says Node-RED already exists, that is a safety stop, not
+an install failure. See [Existing Node-RED Installation](#existing-node-red-installation) at the bottom of this page.
 
 Setup is complete when the log shows the **LibreCoach Installation Summary**
 with **All components installed successfully!**
@@ -41,8 +39,7 @@ with **All components installed successfully!**
 Newly discovered RV-C entities have generic names. Identify them by operating
 known physical controls and watching Home Assistant, then rename and assign
 areas to the matching entities. Do not operate an unknown entity merely to find
-out what it controls. See [Identifying Your Devices](https://librecoach.com/configuration/identify-devices/)
-for the recommended process.
+out what it controls. See [Identifying Your Devices](https://librecoach.com/configuration/dentify-devices/) for the recommended process.
 
 ---
 
@@ -54,8 +51,7 @@ Enabling these features is only one part of their setup:
   access, and have MQTT enabled. Restart Node-RED after completing the GX
   setup. See [Victron GX Integration](https://librecoach.com/configuration/victron/).
 - **Micro-Air EasyTouch:** the Home Assistant host needs working Bluetooth and
-  must be within reliable range of the thermostat. See
-  [Micro-Air EasyTouch](https://librecoach.com/configuration/microair/).
+  must be within reliable range of the thermostat. See [Micro-Air EasyTouch](https://librecoach.com/configuration/microair/).
 - **Hughes Power Watchdog:** Bluetooth discovery is easiest when only the
   Watchdog being added is nearby.
 - **Automated location updates:** the selected `device_tracker` must expose
@@ -71,12 +67,11 @@ Enable **Debug Logging** on the Configuration tab to help troubleshoot a
 problem. Restart the app and the log will include additional detail. Turn it
 off afterward so routine events remain easy to find.
 
-The full installation and configuration guides are available at
-[LibreCoach.com](https://librecoach.com/).
+The full installation and configuration guides are available at [LibreCoach.com](https://librecoach.com/).
 
 ---
 
-## Flow updates and customizations
+## If you customize your Node-RED configuration
 
 By default, an app update also installs the current LibreCoach Node-RED flows.
 This is how updates and new device support are delivered.
@@ -102,7 +97,8 @@ Before continuing, create a full Home Assistant backup. Then choose one path:
 - To use the standard LibreCoach flows, enable **Allow Node-RED Overwrite**,
   save, and restart LibreCoach. Your active Node-RED flows will be replaced.
 - To keep your current flows, enable **Preserve Node-RED Flow Customizations**,
-  save, and restart LibreCoach. You are then responsible for incorporating
-  future LibreCoach flow changes yourself.
+  save, and restart LibreCoach. LibreCoach will still manage Node-RED startup
+  and shared support files, but you are responsible for incorporating future
+  LibreCoach flow changes yourself.
 
 The overwrite option is only an initial-setup authorization.
