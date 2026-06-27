@@ -150,6 +150,14 @@ EOF
 
 ---
 
+## GitHub Releases
+
+Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g. `librecoach/1.3.0`, `can-mqtt-bridge/1.0.6`). Create a matching release in **both repos** whenever a new version ships to prod.
+
+> **Reminder:** After completing the pre-release checklist and pushing prod `main`, create GitHub Releases tagged `librecoach/<version>` (and `can-mqtt-bridge/<version>` if that addon changed) in both `ha-addons-beta` and `ha-addons`. Use the CHANGELOG entry for that version as the release body.
+
+---
+
 ## Pre-release checklist (before committing/pushing prod main)
 
 - [ ] All verification done in **beta** and the beta build tested in HA
