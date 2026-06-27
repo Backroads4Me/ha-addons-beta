@@ -3,10 +3,9 @@
 # mirror.sh — Model B addon-source mirror: ha-addons-beta → ha-addons (prod)
 #
 # Beta is the source of truth. You author and test the LibreCoach add-on in
-# ha-addons-beta, then run this to push the *shared addon source* up to the prod
-# ha-addons repo ahead of a release. It is branch-agnostic: it copies the working
-# tree of whatever branch each repo currently has checked out, so the same script
-# works for every test/migration cycle without editing.
+# ha-addons-beta, then run this to push the *shared addon source* up to prod
+# ha-addons main ahead of a release. It reads branch names live for reporting;
+# apply mode requires prod to be checked out on main.
 #
 # Synced surface: librecoach/ ONLY, minus build/branding files. Everything else
 # (repo root, .github/, can-mqtt-bridge/, beta-notes/) is intentionally
@@ -35,6 +34,10 @@ APPLY=0
 [[ -d "$SRC" ]] || { echo "ERROR: beta source missing: $SRC" >&2; exit 1; }
 [[ -d "$DST" ]] || { echo "ERROR: prod dest missing: $DST" >&2; exit 1; }
 [[ -d "$PROD/.git" ]] || { echo "ERROR: $PROD is not a git repo" >&2; exit 1; }
+if [[ $APPLY -eq 1 && "$PROD_BRANCH" != "main" ]]; then
+  echo "ERROR: prod must be checked out on main before applying the mirror (currently: $PROD_BRANCH)" >&2
+  exit 1
+fi
 
 # Files that must stay prod-specific (Option A: config.yaml carries prod's
 # version + image line) plus transient build artifacts.
@@ -109,7 +112,7 @@ Next, in $PROD:
   1. Apply any config.yaml option/schema changes flagged above (keep prod version+image).
   2. Run the add-on tests:  (cd librecoach/librecoach_ble/tests && python3 -m pytest -q)
   3. Review:  git -C "$PROD" status  &&  rtk proxy git -C "$PROD" diff
-  4. Commit on the current prod branch ($PROD_BRANCH); do NOT merge to main without approval.
+  4. Commit/push prod main only after explicit release approval.
      The mirror copies files only — beta's commit history does NOT cross over, so this
      becomes one fresh prod commit (or however many you choose to split it into).
 EOF

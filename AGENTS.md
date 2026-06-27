@@ -10,9 +10,9 @@ source is pushed up to prod for release; prod's `librecoach/` should only ever c
 mirror.
 
 - **Source of truth:** `ha-addons-beta` (this repo) — all editing and verification.
-- **Prod:** `/home/ted/src/librecoach/ha-addons`, branch `release-integration`.
-- **Release:** merge `release-integration` → `main` in `ha-addons` (gated — explicit
-  approval only; it triggers the prod build that reaches end users).
+- **Prod:** `/home/ted/src/librecoach/ha-addons`, branch `main`.
+- **Release:** committing/pushing prod `main` for release is gated — explicit approval only;
+  it triggers the prod build that reaches end users.
 
 Full procedure: **`beta-notes/beta_sync_plan.md`**. Read it before any sync or release work.
 
@@ -23,6 +23,7 @@ beta-notes/mirror.sh            # dry run (shows real content changes, writes no
 beta-notes/mirror.sh --apply    # mirror librecoach/ up to prod
 ```
 
+- Sync into prod `main`; do not create a release/integration branch for the migration.
 - Synced surface is **`librecoach/` only, minus `config.yaml`**. Everything outside
   `librecoach/` (repo root, `.github/`, `can-mqtt-bridge/`, `beta-notes/`) is intentionally
   repo-specific and is never synced.

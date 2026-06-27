@@ -7,36 +7,41 @@ shared addon source **up** into the prod `ha-addons` repo for release.
 > Earlier cycles synced prod → beta (Model A). That is retired. Do **not** author the
 > add-on in prod anymore — prod's `librecoach/` is a downstream mirror of beta's.
 
+**Last release: prod `1.3.0` (2026-06-26).** At that release the full beta surface was
+mirrored up and all pending one-time config hand-ports were applied. Prod and beta source
+are in sync; the next cycle starts from this baseline. Prod sets its own `version:`/`image:`
+(beta is `…-librecoach-beta`); bump prod's `version:` above `1.3.0` for the next release.
+
 ## Roles
 
 | Repo | Path | Role |
 |---|---|---|
 | `ha-addons-beta` | `/home/ted/src/librecoach/ha-addons-beta` | **Source of truth.** All authoring + ALL verification happen here. |
-| `ha-addons` | `/home/ted/src/librecoach/ha-addons` | Prod. Receives the mirror on its integration branch; merging that branch into `main` = release. |
+| `ha-addons` | `/home/ted/src/librecoach/ha-addons` | Prod. Receives the mirror directly on `main`; committing/pushing `main` = release. |
 
 Both repos are **separate GitHub repos with no shared git history** (HA add-on
 repositories are consumed by URL; beta testers add the beta URL). They are kept tied
 only by the file mirror below — never by a git merge across them.
 
-### Branch conventions (this doc never hardcodes branch names)
+### Branch conventions
 
-- **Prod** keeps a **standing integration branch** — `release-integration` by convention —
-  reused every cycle; it is what merges into `main` at release.
+- **Prod** uses `main` as the migration target. Do not create a release/integration branch for
+  the beta-to-prod mirror.
 - **Beta** branch names vary per testing cycle.
-- The steps below refer to "the beta branch" and "prod's integration branch" generically so
-  this plan and `mirror.sh` stay reusable for all future cycles without editing. `mirror.sh`
-  reads both branch names live; it never depends on a specific name.
+- `mirror.sh` reads both branch names live for reporting, but before applying the mirror,
+  prod must be checked out on `main`.
 
 ## Release flow
 
 1. Author + test in `ha-addons-beta` on the beta branch for this cycle. Commit there.
    Push beta → beta build → verify in HA.
-2. Run `beta-notes/mirror.sh --apply` to copy the addon source into prod.
-3. In prod: apply any flagged `config.yaml` deltas, run tests, review, then commit on prod's
-   integration branch and push it.
-4. **Release = merge prod's integration branch → `main` in `ha-addons`.** This triggers
-   the prod build and is the only step that reaches end users. **Never do it without
-   explicit approval.** Bump prod's `version:` at this point.
+2. Ensure prod is checked out on `main`, then run `beta-notes/mirror.sh --apply` to copy the
+   addon source into prod.
+3. In prod: apply any flagged `config.yaml` deltas, run tests, and review the pending changes
+   on `main`.
+4. **Release = commit and push prod `main` in `ha-addons`.** This triggers the prod build and
+   is the step that reaches end users. **Never do it without explicit approval.** Bump prod's
+   `version:` at this point.
 
 > **The mirror copies files, not git history.** The two repos share no history, so beta's
 > commits never cross over. Each migration lands in prod as **one fresh commit** (or however
@@ -90,12 +95,11 @@ add-on payload (`run.sh`, `Dockerfile`, `rootfs/`, `translations/`, `vehicle_bri
 `mirror.sh` scopes rsync to `librecoach/`, so it physically cannot touch prod's root,
 `.github/`, `.git/`, dev tooling, or `can-mqtt-bridge/` — even with `--delete`.
 
-### Line endings (one-time)
+### Line endings
 
-`librecoach/LICENSE` and `librecoach/CONTRIBUTING.md` have **identical content** but differ
-by line endings (prod historically CRLF, beta LF). The first `mirror.sh --apply` normalizes
-prod to LF. Harmless; expected. (Root cause was a `.gitattributes` drift — beta dropped
-`*.md text eol=lf`.)
+All add-on source (including `librecoach/LICENSE` and `librecoach/CONTRIBUTING.md`) is LF
+in both repos; prod's historical CRLF was normalized to LF in an earlier release. Keep beta
+canonical at LF so the mirror stays a clean content sync.
 
 ---
 
@@ -115,49 +119,15 @@ beta-notes/mirror.sh --apply    # mirror beta/librecoach → prod/librecoach
   differ on `version:` / `image:` only. Anything else flagged is a real option/schema change
   you must port to prod by hand (see below).
 
-## Developer note: `beta_enabled` config option removed
+## Pending config hand-ports
 
-The `beta_enabled` option (and its `schema:` entry) has been removed from
-`librecoach/config.yaml` in beta. It was hiding an unused feature toggle and is no
-longer needed.
+None. All previously pending one-time hand-ports were applied to prod's `config.yaml`
+in the 1.3.0 release (the `beta_enabled` option/schema removal and the
+`victron_enabled: false` default). The drift check is clean — prod vs beta differ on
+`version:` / `image:` only.
 
-### One-time production config hand-port
-
-At the next beta-to-production sync, remove the corresponding lines from
-`/home/ted/src/librecoach/ha-addons/librecoach/config.yaml`:
-
-```yaml
-# remove from options:
-beta_enabled: false
-
-# remove from schema:
-beta_enabled: bool
-```
-
-Existing installations that stored `beta_enabled: true` will simply have an unknown key,
-which HA silently ignores. No migration is needed.
-
----
-
-## Developer note: make Victron fully opt-in
-
-The add-on now defaults `victron_enabled` to `false`. Existing installations that already
-store `victron_enabled: true` remain enabled; the new default applies to new installations
-and installations without a saved value.
-
-### One-time production config hand-port
-
-At the next beta-to-production sync, manually change only the Victron default in
-`/home/ted/src/librecoach/ha-addons/librecoach/config.yaml`:
-
-```yaml
-victron_enabled: false
-```
-
-Do not copy beta's entire `config.yaml`: production must retain its own `version:` and
-non-beta `image:` values. This hand-port is needed once because `config.yaml` is excluded from
-`beta-notes/mirror.sh`; afterward its drift check should report only the expected version and
-image differences.
+When you next change `options:`/`schema:` in beta, record the required prod hand-port
+here so the next release picks it up, then clear this section once applied.
 
 ---
 
@@ -180,18 +150,19 @@ EOF
 
 ---
 
-## Pre-release checklist (before merging prod's integration branch → main)
+## Pre-release checklist (before committing/pushing prod main)
 
 - [ ] All verification done in **beta** and the beta build tested in HA
 - [ ] **Node-RED `main` merged + pushed** with a fresh `artifact/flows.json`, and
       `librecoach/node-red.ref` updated to that commit (see CRITICAL)
+- [ ] Prod checked out on `main`
 - [ ] `mirror.sh --apply` run; prod `git status` shows only intended changes
 - [ ] config.yaml drift check is clean (only `version:` + `image:` differ); image still ends `-librecoach`
 - [ ] `translations/es.yaml` keys match `translations/en.yaml` (mirror.sh checks this — es.yaml must always mirror en.yaml's options)
 - [ ] Add-on tests pass in prod: `(cd librecoach/librecoach_ble/tests && python3 -m pytest -q)`
 - [ ] prod `version:` bumped for the release
 - [ ] `rtk proxy git diff` reviewed (the `rtk` hook rewrites plain `git diff` into a non-patch summary)
-- [ ] Explicit approval obtained for the merge to `main`
+- [ ] Explicit approval obtained for committing/pushing prod `main`
 
 > **Tooling caveat:** the `rtk` hook rewrites `git diff`/`diff`/`sha256sum` output into summaries
 > that are **not** reliable for byte comparisons or patches. Use `rtk proxy git diff` for real
