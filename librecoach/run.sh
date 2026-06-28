@@ -58,7 +58,6 @@ run_orchestrator() {
 	else
 		IS_BETA=0
 	fi
-	bashio::log.info "   Config preserve: slug='${OWNER_SLUG}' beta=${IS_BETA}"
 
 	# Restore: a fresh install has no state file. If the shared file exists, apply
 	# only the keys THIS build's schema already knows about (intersect saved over
@@ -75,7 +74,7 @@ run_orchestrator() {
 			echo "$MERGED" >/data/options.json
 			curl -s --connect-timeout 5 -m 30 -X POST -H "$AUTH_HEADER" -H "Content-Type: application/json" \
 				-d "$(jq -n --argjson o "$MERGED" '{"options":$o}')" "$SUPERVISOR/addons/self/options" >/dev/null
-			bashio::log.info "   Restored saved config from ${PRESERVE_FILE}"
+			bashio::log.info "   Config settings restored from file"
 		else
 			bashio::log.warning "   Could not merge saved config — continuing with defaults"
 		fi
