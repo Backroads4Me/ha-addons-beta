@@ -31,11 +31,16 @@ HEAT_TYPE_REVERSE = {
 
 GAS_HEAT_MODES = {3, 4, 13}
 
+# 0=Auto, 1=Manual Low, 2=Manual High, 65=Cycled Low, 66=Cycled High,
+# 128=N/A (treated as Auto). Value 3 is top speed on some 3-speed units;
+# treated as high. There is no "medium" fan mode.
 FAN_MODE_MAP = {
     0: "auto",
     1: "low",
-    2: "medium",
+    2: "high",
     3: "high",
+    65: "Cycled Low",
+    66: "Cycled High",
     128: "auto",
 }
 
@@ -162,7 +167,6 @@ class MicroAirHandler(BleDeviceHandler):
                 continue
             self._zone_configs[zone] = {
                 "MAV": mav,
-                "FA": cfg.get("FA", [0] * 16),
                 "SPL": cfg.get("SPL", [60, 85, 50, 85]),
                 "MA": cfg.get("MA", [0] * 16),
             }
