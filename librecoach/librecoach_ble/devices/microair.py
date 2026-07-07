@@ -67,11 +67,14 @@ FAULT_DESCRIPTIONS = {
 
 class MicroAirHandler(BleDeviceHandler):
 
+    _CONFIG_MAX_ATTEMPTS = 5
+
     def __init__(self, address, config):
         self.address = address
         self._password = (config.get("microair_password") or "").strip()
         self._email = (config.get("microair_email") or "").strip()
         self._zone_configs = {}
+        self._config_attempts = {}
 
     @staticmethod
     def device_type() -> str:
@@ -121,13 +124,31 @@ class MicroAirHandler(BleDeviceHandler):
 
         parsed = self.parse_status(raw)
 
-        # Omitting Zone selects the firmware path that returns MAV/FA/MA/SPL.
-        # Per-zone requests can return only {"Zone": n}, which must not be cached
-        # as a valid capability record because that prevents future retries.
-        if parsed.get("zones") and not self._zone_configs:
+        # Fetch capabilities per zone: firmware (observed on 1.0.7.0) answers a
+        # zoneless Get Config over BLE with a Status reply, so each zone must be
+        # requested explicitly. Minimal replies like {"Zone": n} are not cached
+        # (MAV=0 is skipped), so those zones are retried on later polls, bounded
+        # by _CONFIG_MAX_ATTEMPTS to avoid indefinite extra BLE traffic.
+        zones = parsed.get("zones") or {}
+        missing = []
+        for zone_key in zones:
+            try:
+                zone = int(zone_key)
+            except (TypeError, ValueError):
+                continue
+            if (
+                zone not in self._zone_configs
+                and self._config_attempts.get(zone, 0) < self._CONFIG_MAX_ATTEMPTS
+            ):
+                missing.append(zone)
+        if missing:
             await asyncio.sleep(2.0)
-            resp = await self._request_json(client, {"Type": "Get Config"})
-            self._store_capability_config(resp)
+            for zone in sorted(missing):
+                self._config_attempts[zone] = self._config_attempts.get(zone, 0) + 1
+                resp = await self._request_json(
+                    client, {"Type": "Get Config", "Zone": zone}
+                )
+                self._store_capability_config(resp)
 
         return parsed
 
