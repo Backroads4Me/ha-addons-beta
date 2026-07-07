@@ -134,8 +134,10 @@ class MicroAirHandler(BleDeviceHandler):
     def _store_capability_config(self, response: dict | None) -> bool:
         """Store meaningful capability records from a Config response."""
         if not isinstance(response, dict):
+            _LOGGER.warning("Get Config: no/invalid response: %r", response)
             return False
         if response.get("Type") != "Response" or response.get("RT") != "Config":
+            _LOGGER.warning("Get Config: unexpected reply shape: %r", response)
             return False
 
         raw_cfg = response.get("CFG")
@@ -143,8 +145,10 @@ class MicroAirHandler(BleDeviceHandler):
             try:
                 raw_cfg = json.loads(raw_cfg)
             except json.JSONDecodeError:
+                _LOGGER.warning("Get Config: CFG is not valid JSON: %r", raw_cfg)
                 return False
         if not isinstance(raw_cfg, dict):
+            _LOGGER.warning("Get Config: CFG has unexpected type: %r", raw_cfg)
             return False
 
         configs = []
@@ -162,15 +166,20 @@ class MicroAirHandler(BleDeviceHandler):
                 zone = int(cfg.get("Zone", 0))
                 mav = int(cfg.get("MAV", 0))
             except (TypeError, ValueError):
+                _LOGGER.warning("Get Config: unparseable zone record: %r", cfg)
                 continue
             if mav == 0:
+                _LOGGER.warning("Get Config: zone %s reports MAV=0, skipping", zone)
                 continue
             self._zone_configs[zone] = {
                 "MAV": mav,
                 "SPL": cfg.get("SPL", [60, 85, 50, 85]),
                 "MA": cfg.get("MA", [0] * 16),
             }
+            _LOGGER.info("Get Config: cached zone %s capabilities (MAV=%s)", zone, mav)
             stored = True
+        if not stored:
+            _LOGGER.warning("Get Config: no usable zone records in CFG: %r", raw_cfg)
         return stored
 
     async def handle_command(self, client, command: dict) -> dict | bool:
