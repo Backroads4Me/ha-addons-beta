@@ -41,23 +41,15 @@ run_orchestrator() {
 	# Config persistence across uninstall/reinstall
 	# ========================
 	# Uninstalling an add-on wipes its /data (and options.json); /share survives.
-	# To save beta testers from re-entering credentials, we mirror options to a
-	# SINGLE shared file in /share and restore them on a fresh install. The file
-	# is created ONLY by the beta build, so normal prod-only users never see the
-	# preserve directory at all; both builds read it and update it when present.
-	# The channel is detected at runtime from the Supervisor's repo-scoped slug
-	# (fixed per repo) so this script stays byte-identical between the beta and
-	# prod repos. The file lives OUTSIDE PROJECT_PATH so the rsync --delete deploy
-	# below can't remove it.
-	BETA_SLUG="5a14a789_librecoach"   # beta repo's repo-scoped slug (prod = 3b081c96_librecoach)
-	OWNER_SLUG=$(curl -s --connect-timeout 5 -m 30 -H "$AUTH_HEADER" "$SUPERVISOR/addons/self/info" | jq -r '.data.slug // empty')
+	# To save users from re-entering credentials, we mirror options to a SINGLE
+	# shared file in /share and restore them on a fresh install. BOTH builds
+	# create and update the preserve directory, so switching channels in either
+	# direction (including a prod user's first beta install) restores the saved
+	# config. The directory also holds Node-RED's persistent context store
+	# (settings.js points the "file" context store here). It lives OUTSIDE
+	# PROJECT_PATH so the rsync --delete deploy below can't remove it.
 	PRESERVE_DIR="/share/.librecoach-preserve"
 	PRESERVE_FILE="$PRESERVE_DIR/options.json"
-	if [ "$OWNER_SLUG" = "$BETA_SLUG" ]; then
-		IS_BETA=1
-	else
-		IS_BETA=0
-	fi
 
 	# Restore: a fresh install has no state file. If the shared file exists, apply
 	# only the keys THIS build's schema already knows about (intersect saved over
@@ -489,15 +481,12 @@ EOF
 	# Save this build's current options to the shared /share file so they survive a
 	# future uninstall/reinstall (restored at the top of the next fresh install).
 	# Done on every successful boot so the file always reflects the latest changes.
-	# The beta build creates the directory; both builds update the file when it is
-	# present, so a prod-only user never gets the preserve dir. The save MERGES this
+	# Both builds create the directory and update the file. The save MERGES this
 	# build's options OVER whatever is already saved (rather than overwriting) so
 	# neither build clobbers keys the other build owns. Stored outside PROJECT_PATH
 	# so the rsync --delete deploy below can't remove it.
-	if [ "$IS_BETA" = "1" ]; then
-		mkdir -p "$PRESERVE_DIR"
-	fi
-	if [ -d "$PRESERVE_DIR" ] && [ -f /data/options.json ]; then
+	mkdir -p "$PRESERVE_DIR"
+	if [ -f /data/options.json ]; then
 		if MERGED=$(jq -n \
 				--argjson old "$(cat "$PRESERVE_FILE" 2>/dev/null || echo '{}')" \
 				--argjson cur "$(cat /data/options.json)" \
