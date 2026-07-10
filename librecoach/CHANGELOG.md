@@ -1,3 +1,31 @@
+### 1.3.4
+
+✨ New
+
+- Add additional Victron entities:
+  - system `/Dc/Battery/TimeToGo` and `/SystemState/State`
+  - battery `/ConsumedAmphours` and `/Alarms/LowVoltage`
+  - solarcharger `/History/Daily/0/Yield` for solar yield today
+  - MultiPlus `/Ac/ActiveIn/Connected`
+  - MultiPlus `/Alarms/LowBattery`, `/Alarms/Overload`, and `/Alarms/HighTemperature`
+- Add synthetic MultiPlus power-flow sensors for dashboard cards:
+  - Charge Power (`/Dc/0/ChargePower`)
+  - Inverter Power (`/Dc/0/InverterPower`)
+  - Total Output Power (`/TotalOutputPower`)
+
+🛠️ Improvements
+
+- Improve Aqua-Hot 100/200 series support, including quiet mode and interior heating priority state confirmation
+- Victron sensors now publish friendly labels such as `Inverting` and `Ok`
+- Victron energy sensors now publish `total_increasing` state class for Home Assistant energy tracking
+- Preserve add-on options and Node-RED persistent context in `/share/.librecoach-preserve` from both beta and prod installs
+
+🐛 Fixes
+
+- Micro-Air fan modes now map manual/cycled high and low values correctly
+- Micro-Air heat source presets and optimistic updates now better match supported device capabilities
+- DC dimmer and driver status decoding is more defensive around missing instances
+
 ### 1.3.3 (Jun 28, 2026)
 
 🐛 Fixes

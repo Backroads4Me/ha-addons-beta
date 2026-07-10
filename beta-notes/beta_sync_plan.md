@@ -150,6 +150,52 @@ EOF
 
 ---
 
+## Preparing the changelog
+
+The add-on changelog must cover **both** the files mirrored from `ha-addons-beta/librecoach/`
+and the Node-RED project revision referenced by `librecoach/node-red.ref`. Do this before
+asking for release review.
+
+1. Identify the Node-RED range that prod users will receive. The old ref is the value currently
+   committed in prod `main`; the new ref is the value from beta:
+
+   ```bash
+   OLD_NR_REF=$(git -C /home/ted/src/librecoach/ha-addons show main:librecoach/node-red.ref)
+   NEW_NR_REF=$(cat /home/ted/src/librecoach/ha-addons-beta/librecoach/node-red.ref)
+   ```
+
+   If prod has already been mirrored locally, `git show main:...` still reads the committed
+   prod baseline, while the working tree contains the pending release ref.
+
+2. Review every Node-RED commit and changed source file in that range:
+
+   ```bash
+   git -C /home/ted/src/librecoach/librecoach-node-red log --oneline --decorate "$OLD_NR_REF..$NEW_NR_REF"
+   git -C /home/ted/src/librecoach/librecoach-node-red diff --stat "$OLD_NR_REF..$NEW_NR_REF" -- src artifact package.json
+   git -C /home/ted/src/librecoach/librecoach-node-red diff "$OLD_NR_REF..$NEW_NR_REF" -- src
+   ```
+
+   Use commit bodies for intent, but verify against the source diff. Release notes should be
+   user-facing: new entities, changed behavior, fixed integrations, migration behavior, and
+   compatibility fixes. Do not list internal artifact churn unless it affects users.
+
+3. Review add-on repo changes outside Node-RED:
+
+   ```bash
+   rtk proxy git -C /home/ted/src/librecoach/ha-addons-beta diff origin/main...HEAD -- librecoach
+   rtk proxy git -C /home/ted/src/librecoach/ha-addons diff -- librecoach
+   ```
+
+   The beta diff shows authored add-on work before mirroring; the prod diff shows the exact
+   pending release payload after mirroring. Include changes to startup scripts, BLE handlers,
+   translations, docs, migrations, and tests when they represent customer-visible behavior.
+
+4. Update `ha-addons-beta/librecoach/CHANGELOG.md` first, then run
+   `beta-notes/mirror.sh --apply` so prod receives the same changelog entry. Re-read the top
+   changelog section in prod after mirroring.
+
+---
+
 ## GitHub Releases
 
 Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g. `librecoach/1.3.0`, `can-mqtt-bridge/1.0.6`). Create a matching release in **both repos** whenever a new version ships to prod.
@@ -163,6 +209,8 @@ Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g
 - [ ] All verification done in **beta** and the beta build tested in HA
 - [ ] **Node-RED `main` merged + pushed** with a fresh `artifact/flows.json`, and
       `librecoach/node-red.ref` updated to that commit (see CRITICAL)
+- [ ] `CHANGELOG.md` updated from both the add-on diff and the full Node-RED
+      `OLD_NR_REF..NEW_NR_REF` range
 - [ ] Prod checked out on `main`
 - [ ] `mirror.sh --apply` run; prod `git status` shows only intended changes
 - [ ] config.yaml drift check is clean (only `version:` + `image:` differ); image still ends `-librecoach`
