@@ -518,6 +518,32 @@ EOF
 	# Ensure directory exists
 	mkdir -p "$PROJECT_PATH"
 
+	# One-time migration: older releases stored Node-RED's persistent context at
+	# $PROJECT_PATH/context, which the rsync --delete below destroys. Rescue it
+	# into the preserve dir BEFORE the rsync — the init-script migration runs too
+	# late (after Node-RED restarts, when the source is already deleted). The old
+	# location, when the file exists, is the LIVE store (Node-RED still running
+	# old settings.js writes there), so its values WIN over the preserve dir;
+	# once the new settings.js is active nothing recreates the old file, so a
+	# stale copy can never clobber fresh preserve-dir data. Keys redesigned or
+	# reset in 2.0 are dropped (same EXCLUDE set as the init-script migration).
+	OLD_CTX="$PROJECT_PATH/context/global/global.json"
+	NEW_CTX_DIR="$PRESERVE_DIR/context/global"
+	NEW_CTX="$NEW_CTX_DIR/global.json"
+	if [ -f "$OLD_CTX" ] && jq -e . "$OLD_CTX" >/dev/null 2>&1; then
+		if MERGED_CTX=$(jq \
+				--argjson new "$(jq -e . "$NEW_CTX" 2>/dev/null || echo '{}')" \
+				'$new * del(.victronDevices, .betaDiscoveryTopics, .recordUnknown, .recordUnknownLog, .recordUnknownStart)' \
+				"$OLD_CTX" 2>/dev/null) \
+			&& [ -n "$MERGED_CTX" ] && [ "$MERGED_CTX" != "null" ]; then
+			mkdir -p "$NEW_CTX_DIR"
+			echo "$MERGED_CTX" >"$NEW_CTX"
+			bashio::log.info "   Rescued Node-RED persistent context to $NEW_CTX_DIR"
+		else
+			bashio::log.warning "   Could not rescue Node-RED context from $OLD_CTX"
+		fi
+	fi
+
 	# One-time migration: older releases stored the Node-RED credential_secret
 	# backup inside $PROJECT_PATH, where `rsync --delete` destroyed it on every
 	# start. Move it to add-on private storage before the rsync below.
