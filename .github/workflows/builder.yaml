@@ -63,7 +63,7 @@ jobs:
       fail-fast: false
       matrix:
         addon: ${{ fromJSON(needs.changes.outputs.addons) }}
-        arch: [aarch64, amd64, armv7]
+        arch: [aarch64, amd64]
 
     steps:
       - uses: actions/checkout@v6
@@ -81,7 +81,6 @@ jobs:
           case "$ARCH" in
             aarch64) platform=linux/arm64 ;;
             amd64) platform=linux/amd64 ;;
-            armv7) platform=linux/arm/v7 ;;
           esac
 
           {
