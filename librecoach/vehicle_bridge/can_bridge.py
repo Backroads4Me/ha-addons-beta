@@ -5,15 +5,18 @@ import subprocess
 
 import can
 
+from can_routing import (
+    format_timestamped_frame,
+    timestamped_topic_for_can_id,
+    topic_for_can_id,
+)
+
 log = logging.getLogger("vehicle_bridge.can")
 
 # Fixed CAN/MQTT values for RV-C
 CAN_BITRATE = "250000"
-TOPIC_RAW = "can/raw"
 TOPIC_SEND = "can/send"
 TOPIC_STATUS = "can/status"
-# Diagnostics are published separately so can/raw consumers carry no extra load.
-TOPIC_DIAGNOSTICS = "can/diagnostics"
 
 
 class CanBridge:
@@ -34,15 +37,13 @@ class CanBridge:
         # (0xFF, 0xFF) = DGN 1FFFF  (DATE_TIME_STATUS)
         self._filtered_pgns = {(0xFF, 0xB8), (0xFF, 0xFF)}
 
-        # Routed to TOPIC_DIAGNOSTICS instead of TOPIC_RAW.
-        # (0xFE, 0xCA) = DGN 1FECA  (DM_RV diagnostic messages)
+        # RV-C DM_RV is routed to TOPIC_DIAGNOSTICS. SAE J1939 DM1 uses the
+        # same PF/PS on data page 0 and remains on TOPIC_RAW.
         #
         # RV-C 3.2.5 broadcasts DM_RV on change of status, repeating at up to
         # 1 Hz only while a fault is active, so a healthy bus is nearly silent
         # here. Keeping it off can/raw means Node-RED and other consumers see no
         # additional traffic whether or not anything is faulting.
-        self._diagnostic_pgns = {(0xFE, 0xCA)}
-
         # PF-only filter: PDU1 messages where PS is destination address (varies per message)
         # 0xE8 = ACKNOWLEDGEMENT (DGN E800)
         self._filtered_pfs = {0xE8}
@@ -162,12 +163,16 @@ class CanBridge:
                 frame = f"{can_id}#{data_hex}"
                 # V-6: high-rate raw CAN telemetry uses QoS 0 (fire-and-forget) to
                 # reduce broker overhead. Commands/status/config stay at QoS 1.
-                topic = (
-                    TOPIC_DIAGNOSTICS
-                    if (pf, ps) in self._diagnostic_pgns
-                    else TOPIC_RAW
-                )
+                topic = topic_for_can_id(msg.arbitration_id)
                 self.mqtt.publish(topic, frame, qos=0, retain=False)
+                # A companion candump-compatible stream preserves SocketCAN's
+                # source timestamp. Existing consumers keep the bare topics.
+                self.mqtt.publish(
+                    timestamped_topic_for_can_id(msg.arbitration_id),
+                    format_timestamped_frame(msg, self.can_interface),
+                    qos=0,
+                    retain=False,
+                )
             except can.CanError as exc:
                 log.warning("CAN read error: %s, retrying...", exc)
                 await asyncio.sleep(1.0)
