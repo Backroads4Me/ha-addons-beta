@@ -9,6 +9,7 @@ from can_routing import (
     TOPIC_RAW,
     TOPIC_TIMESTAMPED,
     format_timestamped_frame,
+    should_publish_can_id,
     timestamped_topic_for_can_id,
     topic_for_can_id,
 )
@@ -24,6 +25,15 @@ def test_j1939_dm1_remains_on_raw_topic():
 
 def test_unrelated_rvc_traffic_remains_on_raw_topic():
     assert topic_for_can_id(0x19FEDB21) == TOPIC_RAW
+
+
+def test_acknowledgements_are_published_for_diagnostic_visibility():
+    assert should_publish_can_id(0x18E84DFE)
+
+
+def test_high_rate_status_filters_remain_in_place():
+    assert not should_publish_can_id(0x19FFB821)
+    assert not should_publish_can_id(0x19FFFF21)
 
 
 def test_timestamped_topics_preserve_diagnostic_separation():

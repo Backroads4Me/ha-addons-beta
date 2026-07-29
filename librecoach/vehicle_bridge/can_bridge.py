@@ -7,6 +7,7 @@ import can
 
 from can_routing import (
     format_timestamped_frame,
+    should_publish_can_id,
     timestamped_topic_for_can_id,
     topic_for_can_id,
 )
@@ -32,11 +33,6 @@ class CanBridge:
         self._send_queue = None
         self._stopping = False
 
-        # PGN filter: skip these (pf, ps) pairs before MQTT publish
-        # (0xFF, 0xB8) = DGN 1FFB8  (DIGITAL_INPUT_STATUS — raw switch panel inputs)
-        # (0xFF, 0xFF) = DGN 1FFFF  (DATE_TIME_STATUS)
-        self._filtered_pgns = {(0xFF, 0xB8), (0xFF, 0xFF)}
-
         # RV-C DM_RV is routed to TOPIC_DIAGNOSTICS. SAE J1939 DM1 uses the
         # same PF/PS on data page 0 and remains on TOPIC_RAW.
         #
@@ -44,10 +40,6 @@ class CanBridge:
         # 1 Hz only while a fault is active, so a healthy bus is nearly silent
         # here. Keeping it off can/raw means Node-RED and other consumers see no
         # additional traffic whether or not anything is faulting.
-        # PF-only filter: PDU1 messages where PS is destination address (varies per message)
-        # 0xE8 = ACKNOWLEDGEMENT (DGN E800)
-        self._filtered_pfs = {0xE8}
-
     def is_enabled(self):
         return bool(self.can_interface)
 
@@ -149,10 +141,7 @@ class CanBridge:
                 if msg is None:
                     continue
 
-                # Drop filtered DGNs before MQTT publish
-                pf = (msg.arbitration_id >> 16) & 0xFF
-                ps = (msg.arbitration_id >> 8) & 0xFF
-                if (pf, ps) in self._filtered_pgns or pf in self._filtered_pfs:
+                if not should_publish_can_id(msg.arbitration_id):
                     continue
 
                 if msg.is_extended_id:
