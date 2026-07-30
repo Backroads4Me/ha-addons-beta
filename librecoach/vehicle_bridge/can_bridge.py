@@ -7,7 +7,6 @@ import can
 
 from can_routing import (
     format_timestamped_frame,
-    should_publish_can_id,
     timestamped_topic_for_can_id,
     topic_for_can_id,
 )
@@ -32,14 +31,6 @@ class CanBridge:
         self._write_task = None
         self._send_queue = None
         self._stopping = False
-
-        # RV-C DM_RV is routed to TOPIC_DIAGNOSTICS. SAE J1939 DM1 uses the
-        # same PF/PS on data page 0 and remains on TOPIC_RAW.
-        #
-        # RV-C 3.2.5 broadcasts DM_RV on change of status, repeating at up to
-        # 1 Hz only while a fault is active, so a healthy bus is nearly silent
-        # here. Keeping it off can/raw means Node-RED and other consumers see no
-        # additional traffic whether or not anything is faulting.
     def is_enabled(self):
         return bool(self.can_interface)
 
@@ -139,9 +130,6 @@ class CanBridge:
             try:
                 msg = await loop.run_in_executor(None, self._bus.recv, 1.0)
                 if msg is None:
-                    continue
-
-                if not should_publish_can_id(msg.arbitration_id):
                     continue
 
                 if msg.is_extended_id:
