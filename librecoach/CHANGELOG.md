@@ -1,3 +1,37 @@
+### 1.4.6 (Jul 30, 2026)
+
+✨ New
+
+- Publish a retained RV-C entity map (`rvc/entity-map`) joining MQTT discovery, the Home Assistant entity registry, and Home Assistant states
+
+### 1.4.5 (Jul 29, 2026)
+
+✨ New
+
+- Publish the complete CAN raw stream
+
+### 1.4.4 (Jul 29, 2026)
+
+🐛 Fixes
+
+- Publish CAN acknowledgement (ACK/NACK) frames onto the raw and timestamped MQTT streams for diagnostic visibility, alongside the existing high-rate status filters
+
+### 1.4.3 (Jul 29, 2026)
+
+✨ New
+
+- Preserve CAN timestamps and route RV-C DM_RV and J1939 DM1 (FECA) separately
+
+### 1.4.2 (Jul 26, 2026)
+
+✨ New
+
+- Route DM_RV messages to `can/diagnostics`
+
+🛠️ Improvements
+
+- Drop armv7 architecture support
+
 ### 1.4.1 (Jul 11, 2026)
 
 🐛 Fixes
