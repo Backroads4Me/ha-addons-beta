@@ -1,36 +1,23 @@
-### 1.4.6 (Jul 30, 2026)
+### 1.5.0 (Aug 2, 2026)
+
+> ⚠️ **Some Victron sensors changed type:** Victron readings that are only on or off, such as alarms and shore power connected, now use `binary_sensor` entity IDs instead of `sensor.` Dashboards and automations that reference them need to be updated after upgrading.
 
 ✨ New
 
-- Publish a retained RV-C entity map (`rvc/entity-map`) joining MQTT discovery, the Home Assistant entity registry, and Home Assistant states
-
-### 1.4.5 (Jul 29, 2026)
-
-✨ New
-
-- Publish the complete CAN raw stream
-
-### 1.4.4 (Jul 29, 2026)
-
-🐛 Fixes
-
-- Publish CAN acknowledgement (ACK/NACK) frames onto the raw and timestamped MQTT streams for diagnostic visibility, alongside the existing high-rate status filters
-
-### 1.4.3 (Jul 29, 2026)
-
-✨ New
-
-- Preserve CAN timestamps and route RV-C DM_RV and J1939 DM1 (FECA) separately
-
-### 1.4.2 (Jul 26, 2026)
-
-✨ New
-
-- Route DM_RV messages to `can/diagnostics`
+- Additional Victron measurements, including battery, solar, inverter/charger, and generator current, plus more AC power readings
+- Victron custom device names set on the GX are now used in Home Assistant, making multiple devices of the same type easier to tell apart
 
 🛠️ Improvements
 
-- Drop armv7 architecture support
+- MQTT delivery is more dependable for Home Assistant discovery, states, and commands
+- Improved Aqua-Hot status reporting for both native and Silverleaf-interfaced systems
+- Victron battery time-to-go now reports in hours, and reports unavailable when the GX is not calculating a remaining time
+- Entities recover on their own after an MQTT reconnect instead of staying unavailable until a restart
+
+🐛 Fixes
+
+- Corrected RV-C decoding across several entities; unavailable and out-of-range readings now display correctly
+- Victron entities no longer freeze at their last reading when a value is missing or non-numeric
 
 ### 1.4.1 (Jul 11, 2026)
 
