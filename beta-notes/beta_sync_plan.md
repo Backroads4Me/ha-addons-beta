@@ -7,10 +7,10 @@ shared addon source **up** into the prod `ha-addons` repo for release.
 > Earlier cycles synced prod → beta (Model A). That is retired. Do **not** author the
 > add-on in prod anymore — prod's `librecoach/` is a downstream mirror of beta's.
 
-**Last release: prod `1.3.0` (2026-06-26).** At that release the full beta surface was
-mirrored up and all pending one-time config hand-ports were applied. Prod and beta source
+**Last release: prod `1.5.0` (2026-08-02).** The full beta surface is mirrored up, the
+config drift check is clean, and prod carries Node-RED ref `6b8efd2`. Prod and beta source
 are in sync; the next cycle starts from this baseline. Prod sets its own `version:`/`image:`
-(beta is `…-librecoach-beta`); bump prod's `version:` above `1.3.0` for the next release.
+(beta is `…-librecoach-beta`); bump prod's `version:` above `1.5.0` for the next release.
 
 ## Roles
 
@@ -121,10 +121,8 @@ beta-notes/mirror.sh --apply    # mirror beta/librecoach → prod/librecoach
 
 ## Pending config hand-ports
 
-None. All previously pending one-time hand-ports were applied to prod's `config.yaml`
-in the 1.3.0 release (the `beta_enabled` option/schema removal and the
-`victron_enabled: false` default). The drift check is clean — prod vs beta differ on
-`version:` / `image:` only.
+None. The drift check is clean — prod vs beta `config.yaml` differ on `version:` /
+`image:` only.
 
 When you next change `options:`/`schema:` in beta, record the required prod hand-port
 here so the next release picks it up, then clear this section once applied.
@@ -198,7 +196,7 @@ asking for release review.
 
 ## GitHub Releases
 
-Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g. `librecoach/1.3.0`, `can-mqtt-bridge/1.0.6`). Create a matching release in **both repos** whenever a new version ships to prod.
+Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g. `librecoach/1.5.0`, `can-mqtt-bridge/1.0.6`). Create a matching release in **both repos** whenever a new version ships to prod.
 
 > **Reminder:** After completing the pre-release checklist and pushing prod `main`, create GitHub Releases tagged `librecoach/<version>` (and `can-mqtt-bridge/<version>` if that addon changed) in both `ha-addons-beta` and `ha-addons`. Use the CHANGELOG entry for that version as the release body.
 
