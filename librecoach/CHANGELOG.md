@@ -1,3 +1,18 @@
+### 1.5.2 (Aug 11, 2026)
+
+✨ New
+
+- Automatic transfer switch support: RV-C enabled transfer switches now report which source is in use. Sources are labeled Generator and Shore where the coach reports them.
+
+🛠️ Improvements
+
+- Further refined Victron rounding to keep readings at a sensible precision
+
+🐛 Fixes
+
+- Micro-Air diagnostic entities no longer duplicate on multi-zone thermostats after a reconnect
+- Hughes Power Watchdog: corrected stale readings on some Gen 1 units, and over-temperature and booster faults now show their names
+
 ### 1.5.1 (Aug 8, 2026)
 
 🐛 Fixes
