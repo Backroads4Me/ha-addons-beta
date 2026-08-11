@@ -23,16 +23,27 @@ def scaled(value, factor=10000):
     return struct.pack(">I", round(value * factor))
 
 
-def v1_frame(line, voltage=121.4, current=14.3, power=1735.0, energy=142.3, frequency=60.0):
+def v1_frame(
+    line,
+    voltage=121.4,
+    current=14.3,
+    power=1735.0,
+    energy=142.3,
+    frequency=60.0,
+    markers=None,
+    error=0,
+):
     frame = bytearray(40)
     frame[:3] = b"\x01\x03\x20"
     frame[3:7] = struct.pack(">i", round(voltage * 10000))
     frame[7:11] = struct.pack(">i", round(current * 10000))
     frame[11:15] = struct.pack(">i", round(power * 10000))
     frame[15:19] = struct.pack(">i", round(energy * 10000))
-    frame[19] = 0
+    frame[19] = error
     frame[31:35] = struct.pack(">i", round(frequency * 100))
-    frame[37:40] = b"\x00\x00\x00" if line == 1 else b"\x01\x01\x01"
+    if markers is None:
+        markers = b"\x00\x00\x00" if line == 1 else b"\x01\x01\x01"
+    frame[37:40] = markers
     return bytes(frame)
 
 
@@ -75,6 +86,43 @@ def test_v1_two_line_frames_build_combined_state():
     assert second["voltage_l2"] == 120.1
     assert second["energy_kwh"] == 150.0
     assert second["supports_control"] is False
+
+
+def test_v1_unrecognised_markers_are_treated_as_line_one():
+    handler = HughesHandler("AA:BB", {"_device_name": "PMS123456789ABCE3XX"})
+    state = handler.parse_status(v1_frame(1, markers=b"\x02\x07\x00", voltage=118.9))
+
+    assert state["voltage_l1"] == 118.9
+    assert state["is_50a"] is False
+
+
+def test_v1_legacy_hardware_inverts_line_markers_and_drops_error_byte():
+    handler = HughesHandler("AA:BB", {"_device_name": "PMD123456789ABCE2XX"})
+    first = handler.parse_status(
+        v1_frame(2, markers=b"\x00\x00\x00", voltage=119.5, error=3)
+    )
+    second = handler.parse_status(v1_frame(1, markers=b"\x01\x01\x01", voltage=121.0))
+
+    assert first["voltage_l2"] == 119.5
+    assert first["error_code"] == 0
+    assert second["voltage_l1"] == 121.0
+    assert second["is_50a"] is True
+
+
+def test_v1_legacy_single_line_keeps_zero_markers_on_line_one():
+    handler = HughesHandler("AA:BB", {"_device_name": "PMS123456789ABCE2XX"})
+    state = handler.parse_status(v1_frame(1, markers=b"\x00\x00\x00", voltage=120.4))
+
+    assert state["voltage_l1"] == 120.4
+    assert state["is_50a"] is False
+
+
+def test_v1_current_hardware_reports_error_byte():
+    handler = HughesHandler("AA:BB", {"_device_name": "PMS123456789ABCE3XX"})
+    state = handler.parse_status(v1_frame(1, error=13))
+
+    assert state["error_code"] == 13
+    assert state["error_description"] == "Over temperature - internal temperature exceeded 74C"
 
 
 def test_v2_30a_frame_and_state_message():

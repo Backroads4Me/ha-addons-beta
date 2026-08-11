@@ -34,6 +34,13 @@ V2_NEUTRAL_DISABLE = 0x01
 NOTIFICATION_TIMEOUT = 60
 INITIAL_DATA_TIMEOUT = 5
 
+# V1 hardware revision, from name[15:17]. E2 predates the error-code byte and
+# uses inverted line markers; E3/E4 share the current behaviour.
+V1_LEGACY_HW = "E2"
+V1_DEFAULT_HW = "E3"
+V1_L2_MARKER = b"\x01\x01\x01"
+V1_LEGACY_L2_MARKER = b"\x00\x00\x00"
+
 ERRORS = {
     0: "No Error",
     1: "Line 1 voltage exceeded 132V or dropped below 104V",
@@ -47,6 +54,8 @@ ERRORS = {
     9: "Surge protection capacity depleted - replace surge board",
     11: "Frequency error (F1)",
     12: "Frequency error (F2)",
+    13: "Over temperature - internal temperature exceeded 74C",
+    14: "Voltage booster malfunction",
 }
 
 
@@ -67,6 +76,12 @@ class HughesHandler(BleDeviceHandler):
         self._pending_ack_command = None
         self._line_1 = None
         self._line_2 = None
+        # V1 line-marker routing depends on the hardware revision and on whether
+        # the unit is dual-line, both of which the advertised name encodes.
+        name = self.device_name
+        self._v1_hardware = name[15:17] if len(name) >= 17 else V1_DEFAULT_HW
+        self._v1_legacy = self._v1_hardware == V1_LEGACY_HW
+        self._v1_dual_line = name[2:3] == "D"
 
     @staticmethod
     def device_type() -> str:
@@ -83,7 +98,7 @@ class HughesHandler(BleDeviceHandler):
         callback = self._on_v1_notification if self.protocol == "V1" else self._on_v2_notification
         await client.start_notify(characteristic, callback)
         if self.protocol == "V2":
-            await client.write_gatt_char(V2_CHAR_UUID, V2_INIT, response=False)
+            await client.write_gatt_char(V2_CHAR_UUID, V2_INIT, response=True)
         await asyncio.wait_for(self._initial_data.wait(), timeout=INITIAL_DATA_TIMEOUT)
         return True
 
@@ -221,14 +236,23 @@ class HughesHandler(BleDeviceHandler):
             "energy": energy,
             "frequency": frequency,
         }
-        line_id = raw[37:40]
-        if line_id == b"\x00\x00\x00":
-            self._line_1 = line
-        elif line_id == b"\x01\x01\x01":
+        if self._v1_line_number(raw[37:40]) == 2:
             self._line_2 = line
         else:
-            return {}
-        return self._build_state("V1", raw[19])
+            self._line_1 = line
+        # The error byte carries no data on E2 hardware.
+        error_code = 0 if self._v1_legacy else raw[19]
+        return self._build_state("V1", error_code)
+
+    def _v1_line_number(self, markers: bytes) -> int:
+        """Resolve which AC line a V1 frame describes, per PROTOCOL-GEN1.md."""
+        if self._v1_legacy:
+            if markers == V1_LEGACY_L2_MARKER:
+                return 2 if self._v1_dual_line else 1
+            # A non-zero marker on E2 hardware proves the unit is dual-line.
+            self._v1_dual_line = True
+            return 1
+        return 2 if markers == V1_L2_MARKER else 1
 
     def _parse_v2(self, raw: bytes) -> dict:
         if len(raw) < 27 or raw[:4] != V2_HEADER or raw[-2:] != V2_END:
