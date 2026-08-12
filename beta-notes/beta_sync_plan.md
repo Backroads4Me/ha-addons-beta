@@ -54,14 +54,12 @@ only by the file mirror below — never by a git merge across them.
 The add-on `Dockerfile` fetches the exact `librecoach-node-red` commit recorded in
 `librecoach/node-red.ref` and `RUN`-asserts `artifact/flows.json` exists. The pointer is part of
 the mirrored add-on source, so beta and prod build the same Node-RED revision. `mirror.sh` does
-not copy the Node-RED repository itself.
+not copy the Node-RED repository itself. The fetch is anonymous, which requires
+`librecoach-node-red` to stay public.
 
-The fetch authenticates with the BuildKit secret `gh_token`, supplied by each repo's build
-workflow from the `NODE_RED_TOKEN` repository secret. Because the Dockerfile is mirrored but
-the workflows are not, **prod needs its own `NODE_RED_TOKEN` secret and the matching `secrets:`
-line in its build workflow**. A fine-grained PAT or GitHub App token with read-only `contents`
-on `librecoach-node-red` is sufficient. With no token the fetch falls back to anonymous, which
-works only while `librecoach-node-red` is public.
+Only the files the add-on consumes at runtime are bundled: `artifact/flows.json`,
+`flows_cred.json`, `package.json`, `data/`, and `LICENSE`. Adding a new runtime dependency on
+another path in the Node-RED repo means adding it to the allowlist in the `Dockerfile`.
 
 Therefore, before you test in beta or release to prod:
 
