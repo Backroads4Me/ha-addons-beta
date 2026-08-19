@@ -53,6 +53,7 @@ options.json
 *.db-wal
 
 # Temporary files
+TODO.md
 tmp/
 temp/
 *.tmp

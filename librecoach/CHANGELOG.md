@@ -1,16 +1,25 @@
-### 1.5.2 (Aug 11, 2026)
+### 1.5.2 (Aug 19, 2026)
 
 ✨ New
 
 - Automatic transfer switch support: RV-C enabled transfer switches now report which source is in use. Sources are labeled Generator and Shore where the coach reports them.
+- Victron alarms that report warning separately from alarm now appear as problem sensors
 
 🛠️ Improvements
 
+- Tank levels hold steady: a tank sitting on a sender boundary no longer flips back and forth
+- Redundant prefixes removed from LibreCoach system entity names
+- Victron entities keep their identity when a GX service restarts
 - Further refined Victron rounding to keep readings at a sensible precision
 
 🐛 Fixes
 
-- Micro-Air diagnostic entities no longer duplicate on multi-zone thermostats after a reconnect
+- Micro-Air diagnostic entities no longer duplicate on multi-zone thermostats
+- Furnace commands now reach the furnace
+- Dimmers no longer report on while their actual state is unknown
+- Generator engine load now reports the correct percentage
+- Sensor faults and out-of-range readings across RV-C entities now show as unavailable instead of implausible numbers
+- More reliable address claim and RV-C polling, which improves how consistently devices answer on the bus
 - Hughes Power Watchdog: corrected stale readings on some Gen 1 units, and over-temperature and booster faults now show their names
 
 ### 1.5.1 (Aug 8, 2026)
