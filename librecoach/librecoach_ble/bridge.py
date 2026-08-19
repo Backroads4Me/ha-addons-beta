@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 
 from bleak import BleakError
@@ -452,11 +453,11 @@ class BleBridgeManager:
 
     # --- Poll Loop ---
 
-    def _next_delay(self, entry: dict) -> float:
+    def _next_delay(self, entry: dict, handler=None) -> float:
         """Healthy cadence when no failures, otherwise capped backoff (B-4)."""
         fc = entry["failure_count"]
         if fc <= 0:
-            return BLE_POLL_INTERVAL
+            return getattr(handler, "poll_interval", BLE_POLL_INTERVAL)
         idx = min(fc - 1, len(BLE_BACKOFF_SCHEDULE) - 1)
         return BLE_BACKOFF_SCHEDULE[idx]
 
@@ -503,7 +504,7 @@ class BleBridgeManager:
 
             # Sleep OUTSIDE the lock so commands can run between polls. A reconnect
             # command sets the wake event to retry immediately.
-            delay = self._next_delay(entry)
+            delay = self._next_delay(entry, handler)
             try:
                 await asyncio.wait_for(entry["wake"].wait(), timeout=delay)
             except asyncio.TimeoutError:
@@ -515,11 +516,25 @@ class BleBridgeManager:
         entry = self._active_devices.get(address)
         if not entry:
             return
+        recovered = entry["failure_count"] > 0
         entry["failure_count"] = 0
-        now = datetime.now(timezone.utc).isoformat()
+        now_monotonic = time.monotonic()
+        last_diagnostic = entry.get("last_success_diagnostic", 0.0)
+        publish_diagnostic = (
+            recovered
+            or entry["availability"] != PAYLOAD_ONLINE
+            or now_monotonic - last_diagnostic >= BLE_POLL_INTERVAL
+        )
 
-        await self._publish(TOPIC_LAST_SUCCESS, device_type, address, now, retain=True)
-        await self._publish(TOPIC_FAILURE_COUNT, device_type, address, "0", retain=True)
+        if publish_diagnostic:
+            now = datetime.now(timezone.utc).isoformat()
+            await self._publish(
+                TOPIC_LAST_SUCCESS, device_type, address, now, retain=True
+            )
+            await self._publish(
+                TOPIC_FAILURE_COUNT, device_type, address, "0", retain=True
+            )
+            entry["last_success_diagnostic"] = now_monotonic
 
         if entry["availability"] != PAYLOAD_ONLINE:
             entry["availability"] = PAYLOAD_ONLINE

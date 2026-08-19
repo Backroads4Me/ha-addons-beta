@@ -292,6 +292,8 @@ def test_b4_backoff_progression():
     mgr = BleBridgeManager(FakeHass(), {})
     entry = {"failure_count": 0}
     assert mgr._next_delay(entry) == const.BLE_POLL_INTERVAL
+    fast_handler = type("FastHandler", (), {"poll_interval": 1})()
+    assert mgr._next_delay(entry, fast_handler) == 1
     seen = []
     for fc in range(1, 8):
         entry["failure_count"] = fc
@@ -299,6 +301,23 @@ def test_b4_backoff_progression():
     assert seen[:4] == const.BLE_BACKOFF_SCHEDULE
     # caps at the last value
     assert seen[-1] == const.BLE_BACKOFF_SCHEDULE[-1]
+
+
+def test_healthy_diagnostics_are_not_published_at_fast_device_cadence(monkeypatch):
+    conftest.reset_recorders()
+    mgr = BleBridgeManager(FakeHass(), {})
+    addr = "aa:bb"
+    mgr._active_devices[addr] = {
+        "failure_count": 0,
+        "availability": const.PAYLOAD_ONLINE,
+        "last_error": const.ERROR_NONE,
+        "last_success_diagnostic": 100.0,
+    }
+    monkeypatch.setattr(bridge_mod.time, "monotonic", lambda: 101.0)
+
+    run(mgr._on_poll_success("hughes", addr))
+
+    assert conftest.PUBLISHED == []
 
 
 # --- B-4/F-6: bounded operations and recovery from wedged BLE awaits ---
