@@ -41,7 +41,7 @@ git -C "$NODE_RED_REPO" show "$NODE_RED_REF:flows_cred.json" >/dev/null || {
 SRC_TIME="$(git -C "$NODE_RED_REPO" log -1 --format=%ct "$NODE_RED_REF" -- src/)"
 ARTIFACT_TIME="$(git -C "$NODE_RED_REPO" log -1 --format=%ct "$NODE_RED_REF" -- artifact/)"
 if [[ -n "$SRC_TIME" && ( -z "$ARTIFACT_TIME" || "$ARTIFACT_TIME" -lt "$SRC_TIME" ) ]]; then
-    echo "ERROR: artifact/ is older than src/ at $NODE_RED_REF; deploy in Node-RED first" >&2
+    echo "ERROR: artifact/ is older than src/ at $NODE_RED_REF; restart Node-RED so the splitter rebuilds it" >&2
     exit 1
 fi
 

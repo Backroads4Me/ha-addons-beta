@@ -4,6 +4,8 @@
 
 - Automatic transfer switch support: RV-C enabled transfer switches now report which source is in use. Sources are labeled Generator and Shore where the coach reports them.
 - Victron alarms that report warning separately from alarm now appear as problem sensors
+- Supported Gen 2 Hughes Power Watchdogs now expose per-line electrical and fault diagnostics, stored error history, neutral monitoring, shore-power relay control, and backlight control
+- SilverLeaf TM-226 Aqua-Hot installations now report actual burner activity separately from the existing diesel-burner control
 
 🛠️ Improvements
 
@@ -11,6 +13,8 @@
 - Redundant prefixes removed from LibreCoach system entity names
 - Victron entities keep their identity when a GX service restarts
 - Further refined Victron rounding to keep readings at a sensible precision
+- Hughes Power Watchdog fault changes arrive promptly while routine readings use deadbands to avoid unnecessary Home Assistant updates
+- Legacy DC-driver-based lights remain compatible without sharing state or commands with standard RV-C dimmers
 
 🐛 Fixes
 
@@ -20,6 +24,10 @@
 - Generator engine load now reports the correct percentage
 - Sensor faults and out-of-range readings across RV-C entities now show as unavailable instead of implausible numbers
 - More reliable address claim and RV-C polling, which improves how consistently devices answer on the bus
+- Native Aqua-Hot and standard water-heater unavailable frames no longer turn valid states off
+- Floor-heat AUTO uses the OEM-observed schedule command
+- Simple motorized shades retain their intentional 50% unknown-position placeholder instead of treating motor duty as measured position
+- Export filenames are constrained to safe local paths, and ordinary CAN traffic waits for a valid claimed source address
 - Hughes Power Watchdog: corrected stale readings on some Gen 1 units, and over-temperature and booster faults now show their names
 
 ### 1.5.1 (Aug 8, 2026)

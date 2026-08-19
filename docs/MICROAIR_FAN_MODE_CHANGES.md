@@ -67,8 +67,9 @@ Deployment:
 
 1. Rebuild/reinstall the `librecoach` add-on from this repo so the updated
    `microair.py` is running.
-2. Deploy Node-RED — the flow-splitter (`restoreFunctionsTemplates: true`)
-   restores the updated function code from `src/` on deploy.
+2. Restart the Node-RED add-on — the flow-splitter
+   (`restoreFunctionsTemplates: true`) restores the updated function code from
+   `src/` during startup.
 3. In HA, the Micro-Air climate entity should be rediscovered automatically;
    if the fan list looks stale, delete the retained
    `homeassistant/climate/microair_*_zone_*/config` message or restart the

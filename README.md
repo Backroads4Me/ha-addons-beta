@@ -1,30 +1,53 @@
 # Backroads4Me Home Assistant Add-ons — BETA
 
-> # ⚠️ BETA TESTING REPOSITORY — NOT FOR PRODUCTION USE
+> ## ⚠️ BETA TESTING REPOSITORY — NOT FOR PRODUCTION USE
 >
-> **This is NOT the LibreCoach add-on.** This repository contains **pre-release beta builds**
-> intended only for testing. They may be unstable, contain bugs, break between updates, or
-> change behavior without notice.
+> This repository publishes **pre-release LibreCoach builds** for deliberate testing. Beta
+> builds may be unstable, contain bugs, or change behavior between updates.
 >
-> **If you are a regular user, do NOT install from here.** Use the stable production
-> repository instead: **[Backroads4Me/ha-addons](https://github.com/Backroads4Me/ha-addons)**.
+> For normal use, install LibreCoach from the
+> **[stable repository](https://github.com/Backroads4Me/ha-addons)** instead.
 
-To avoid any confusion with the production add-ons, every Docker image in this repository uses
-the **`-beta`** suffix (e.g. `ghcr.io/backroads4me/amd64-librecoach-beta`). Beta add-ons install
-**side by side** with their production counterparts — they do not replace or upgrade them — so a
-beta build can never silently take over a working production install.
+## Before testing
 
-## Add-ons (beta)
+- Create a full Home Assistant backup.
+- Stop the stable LibreCoach add-on before starting the beta. The two installations can exist
+  side by side, but they manage the same Node-RED installation, CAN interface, and Home Assistant
+  entities and must not run at the same time.
+- Read the [LibreCoach changelog](./librecoach/CHANGELOG.md) for the behavior under test.
+- Expect to provide the beta version and relevant logs when reporting a problem.
 
-- **[LibreCoach](./librecoach/README.md)** *(beta)*: For controlling and monitoring RV systems.
+Every image published by this repository uses the **`-beta`** suffix, such as
+`ghcr.io/backroads4me/amd64-librecoach-beta`. A beta build does not replace or upgrade the stable
+add-on automatically.
+
+## Install the beta
+
+Only add this repository if you intend to test a pre-release build:
+
+[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBackroads4Me%2Fha-addons-beta)
+
+You can also add `https://github.com/Backroads4Me/ha-addons-beta` manually under Home Assistant's
+add-on repositories. Install **LibreCoach** from **BETA TESTING: LibreCoach**, review its
+configuration, and then start it while the stable add-on is stopped.
+
+## Report beta feedback
+
+Open a [bug report](https://github.com/Backroads4Me/ha-addons-beta/issues/new?template=bug_report.yml)
+or a [feature request](https://github.com/Backroads4Me/ha-addons-beta/issues/new?template=feature_request.yml).
+Include the LibreCoach beta version, affected hardware, expected behavior, actual behavior, and
+the relevant add-on or Node-RED logs.
+
+## LibreCoach
+
+The add-on overview is shared with the stable repository, so its installation
+button points to stable. Use the beta installation link above for testing.
+
+- [Add-on overview](./librecoach/README.md)
+- [First-start and configuration notes](./librecoach/DOCS.md)
+- [Changelog](./librecoach/CHANGELOG.md)
 
 ## Contributing
 
-This repository uses a CLA for the LibreCoach add-on. See `librecoach/CONTRIBUTING.md` for details.
-
-## Installation (testers only)
-
-Only add this repository if you intend to test pre-release builds. To add it to your Home
-Assistant instance, click the button below:
-
-[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBackroads4Me%2Fha-addons-beta)
+This repository uses a CLA for the LibreCoach add-on. See
+[CONTRIBUTING.md](./librecoach/CONTRIBUTING.md) for details.
