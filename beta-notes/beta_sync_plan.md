@@ -95,12 +95,11 @@ add-on payload (`run.sh`, `Dockerfile`, `rootfs/`, `translations/`, `vehicle_bri
 | `repository.json` | beta "BETA TESTING" name + beta URL |
 | `README.md` (root) | beta landing page warns testers off prod |
 | `.github/*` | beta workflow carries `SUFFIX: beta` |
-| `can-mqtt-bridge/*` | separate add-on, not developed in beta |
 | `beta-notes/*` | beta-only working notes (this file lives here) |
 | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | identical today, but kept repo-local on principle |
 
 `mirror.sh` scopes rsync to `librecoach/`, so it physically cannot touch prod's root,
-`.github/`, `.git/`, dev tooling, or `can-mqtt-bridge/` — even with `--delete`.
+`.github/`, `.git/`, dev tooling, or beta notes — even with `--delete`.
 
 ### Line endings
 
@@ -203,9 +202,9 @@ asking for release review.
 
 ## GitHub Releases
 
-Both repos (`ha-addons-beta` and `ha-addons`) use addon-scoped release tags (e.g. `librecoach/1.5.0`, `can-mqtt-bridge/1.0.6`). Create a matching release in **both repos** whenever a new version ships to prod.
+Both repos (`ha-addons-beta` and `ha-addons`) use LibreCoach-scoped release tags (e.g. `librecoach/1.5.0`). Create a matching release in **both repos** whenever a new version ships to prod.
 
-> **Reminder:** After completing the pre-release checklist and pushing prod `main`, create GitHub Releases tagged `librecoach/<version>` (and `can-mqtt-bridge/<version>` if that addon changed) in both `ha-addons-beta` and `ha-addons`. Use the CHANGELOG entry for that version as the release body.
+> **Reminder:** After completing the pre-release checklist and pushing prod `main`, create GitHub Releases tagged `librecoach/<version>` in both `ha-addons-beta` and `ha-addons`. Use the CHANGELOG entry for that version as the release body.
 
 ---
 

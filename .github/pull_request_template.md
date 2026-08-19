@@ -4,7 +4,6 @@
 
 ## Scope
 
-- [ ] CAN to MQTT Bridge
 - [ ] LibreCoach
 - [ ] Repository tooling or documentation
 

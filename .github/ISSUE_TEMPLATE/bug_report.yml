@@ -13,7 +13,6 @@ body:
       label: Add-on
       description: Which add-on has the problem?
       options:
-        - CAN to MQTT Bridge
         - LibreCoach
     validations:
       required: true

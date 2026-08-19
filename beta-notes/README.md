@@ -17,13 +17,10 @@ beta build can never silently take over a working production install.
 ## Add-ons (beta)
 
 - **[LibreCoach](./librecoach/README.md)** *(beta)*: For controlling and monitoring RV systems.
-- **[CAN to MQTT Bridge](./can-mqtt-bridge/README.md)** *(beta)*: Initializes CAN interfaces and provides a bidirectional bridge to MQTT.
 
 ## Contributing
 
-This repository uses a CLA for the LibreCoach add-on only. The CLA check is applied at the
-repository level by CLA Assistant, so you may be prompted to sign even when contributing to other
-add-ons. See `librecoach/CONTRIBUTING.md` for details.
+This repository uses a CLA for the LibreCoach add-on. See `librecoach/CONTRIBUTING.md` for details.
 
 ## Installation (testers only)
 

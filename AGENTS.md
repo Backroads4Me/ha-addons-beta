@@ -25,8 +25,8 @@ beta-notes/mirror.sh --apply    # mirror librecoach/ up to prod
 
 - Sync into prod `main`; do not create a release/integration branch for the migration.
 - Synced surface is **`librecoach/` only, minus `config.yaml`**. Everything outside
-  `librecoach/` (repo root, `.github/`, `can-mqtt-bridge/`, `beta-notes/`) is intentionally
-  repo-specific and is never synced.
+  `librecoach/` (repo root, `.github/`, `beta-notes/`) is intentionally repo-specific and is
+  never synced.
 - `config.yaml` is excluded (Option A): prod keeps its own `version:` and
   `image: …-librecoach` (beta uses `…-librecoach-beta`). When you change `options:`/`schema:`
   in beta, **hand-port the same edits to prod** and keep prod's version/image lines. The mirror

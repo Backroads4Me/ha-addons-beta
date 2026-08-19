@@ -8,7 +8,7 @@
 # apply mode requires prod to be checked out on main.
 #
 # Synced surface: librecoach/ ONLY, minus build/branding files. Everything else
-# (repo root, .github/, can-mqtt-bridge/, beta-notes/) is intentionally
+# (repo root, .github/, beta-notes/) is intentionally
 # repo-specific and is never touched — see beta_sync_plan.md for the rationale.
 #
 # SAFETY: dry-run by default. Nothing is written unless you pass --apply.

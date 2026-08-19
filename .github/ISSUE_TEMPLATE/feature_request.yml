@@ -9,7 +9,6 @@ body:
       label: Add-on
       description: Which add-on would this improve?
       options:
-        - CAN to MQTT Bridge
         - LibreCoach
         - Repository or multiple add-ons
     validations:
