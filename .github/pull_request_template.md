@@ -1,27 +1,23 @@
-## Summary
+## What changed and why
 
-<!-- What changed, and why? -->
+<!-- Describe the problem, the outcome, and any non-obvious design choice. -->
 
-## Scope
+## User impact
 
-- [ ] LibreCoach
-- [ ] Repository tooling or documentation
-
-## Compatibility
-
-<!-- Describe user-visible, configuration, entity-ID, or migration effects. Write "None" if there are none. -->
+<!-- Describe entity, configuration, compatibility, migration, or hardware effects. Write "None" if there are none. -->
 
 ## Validation
 
-<!-- List the commands and hardware checks that passed. -->
+<!-- List exact automated checks and relevant Home Assistant or hardware tests. State anything that was not tested. -->
 
-## Release readiness
+## Dependencies
 
-- [ ] User-facing changes are documented in `CHANGELOG.md` when applicable.
-- [ ] Configuration or usage changes are documented in `DOCS.md` when applicable.
-- [ ] Required companion repository changes are merged and referenced.
-- [ ] No release, tag, or production merge is included without explicit approval.
+<!-- Link required companion-repository commits or PRs. For Node-RED-dependent changes, include the published main SHA and the matching node-red.ref update. Write "None" if there are none. -->
 
-## Related issues
+## Documentation
+
+<!-- Link CHANGELOG.md or DOCS.md updates, or explain why documentation is not needed. -->
+
+## Related issue
 
 <!-- For example: Fixes #123 -->
