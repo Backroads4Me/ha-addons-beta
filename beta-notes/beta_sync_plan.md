@@ -222,6 +222,10 @@ Both repos (`ha-addons-beta` and `ha-addons`) use LibreCoach-scoped release tags
 - [ ] Add-on tests pass in prod: `(cd librecoach/librecoach_ble/tests && python3 -m pytest -q)`
 - [ ] prod `version:` bumped for the release
 - [ ] `rtk proxy git diff` reviewed (the `rtk` hook rewrites plain `git diff` into a non-patch summary)
+- [ ] `librecoach-site` reviewed and pushed alongside the release — user
+      documentation is written as behaviour lands but is held unpushed until
+      the release ships it, so the site never describes behaviour users do not
+      have yet
 - [ ] Explicit approval obtained for committing/pushing prod `main`
 
 > **Tooling caveat:** the `rtk` hook rewrites `git diff`/`diff`/`sha256sum` output into summaries
