@@ -7,9 +7,9 @@ shared addon source **up** into the prod `ha-addons` repo for release.
 > Earlier cycles synced prod → beta (Model A). That is retired. Do **not** author the
 > add-on in prod anymore — prod's `librecoach/` is a downstream mirror of beta's.
 
-**Current production baseline: `1.5.1` (2026-08-08).** Production carries Node-RED ref
-`9decb68af111a67f8ba552719a747e0e8fdf603a`. Prod sets its own `version:` and `image:`
-(beta is `…-librecoach-beta`); bump prod's version above `1.5.1` for the next release.
+**Current production baseline: `1.6.0` (2026-08-21).** Production carries Node-RED ref
+`4109cfda3d8bb683899911f4fc5582d20847cb17`. Prod sets its own `version:` and `image:`
+(beta is `…-librecoach-beta`); bump prod's version above `1.6.0` for the next release.
 
 ## Roles
 
@@ -53,8 +53,8 @@ only by the file mirror below — never by a git merge across them.
 The add-on `Dockerfile` fetches the exact `librecoach-node-red` commit recorded in
 `librecoach/node-red.ref` and `RUN`-asserts `artifact/flows.json` exists. The pointer is part of
 the mirrored add-on source, so beta and prod build the same Node-RED revision. `mirror.sh` does
-not copy the Node-RED repository itself. The fetch is anonymous, which requires
-`librecoach-node-red` to stay public.
+not copy the Node-RED repository itself. `librecoach-node-red` is private, so the Dockerfile
+authenticates the fetch with the required `node_red_token` BuildKit secret.
 
 Only the files the add-on consumes at runtime are bundled: `artifact/flows.json`,
 `flows_cred.json`, `package.json`, `data/`, and `LICENSE`. Adding a new runtime dependency on

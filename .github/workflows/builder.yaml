@@ -164,4 +164,6 @@ jobs:
             ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.arch }}-${{ matrix.addon }}-${{ env.IMAGE_SUFFIX }}:${{ steps.settings.outputs.version }}
             ghcr.io/${{ env.IMAGE_OWNER }}/${{ matrix.arch }}-${{ matrix.addon }}-${{ env.IMAGE_SUFFIX }}:latest
           build-args: BUILD_FROM=${{ steps.settings.outputs.build_from }}
+          secrets: |
+            node_red_token=${{ secrets.NODE_RED_TOKEN }}
           provenance: false
