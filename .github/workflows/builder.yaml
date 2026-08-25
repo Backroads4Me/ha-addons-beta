@@ -51,9 +51,63 @@ jobs:
           jq -cn --args '$ARGS.positional' "${addons[@]}" \
             | sed 's/^/addons=/' >> "$GITHUB_OUTPUT"
 
+  version-check:
+    name: Check version against changelog
+    needs: changes
+    if: needs.changes.outputs.addons != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        addon: ${{ fromJSON(needs.changes.outputs.addons) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Beta iterates toward a release rather than past one, so config.yaml
+      # carries a pre-release version such as 1.5.3-beta.4 and the changelog
+      # carries the release it is heading for. Both checks run against that
+      # base version, which is what production will publish unchanged.
+      - name: config.yaml version matches the newest changelog entry
+        run: |
+          set -euo pipefail
+          addon="${{ matrix.addon }}"
+          cfg=$(yq -r '.version' "$addon/config.yaml")
+          base=${cfg%%-*}
+          if [ "$base" != "$cfg" ] && \
+             ! grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$' <<< "$cfg"; then
+            echo "::error::$cfg is not a release or a <version>-beta.<n> pre-release"
+            exit 1
+          fi
+          mapfile -t vers < <(grep -oP '^### \K[0-9]+\.[0-9]+\.[0-9]+' "$addon/CHANGELOG.md")
+          newest="${vers[0]}"
+          if [ "$base" != "$newest" ]; then
+            echo "::error::config.yaml is $cfg but the newest CHANGELOG entry is $newest"
+            exit 1
+          fi
+          echo "version $cfg targets $newest, which the changelog documents"
+
+      - name: A release with new features is a minor bump
+        run: |
+          set -euo pipefail
+          addon="${{ matrix.addon }}"
+          mapfile -t vers < <(grep -oP '^### \K[0-9]+\.[0-9]+\.[0-9]+' "$addon/CHANGELOG.md")
+          newest="${vers[0]}"; prev="${vers[1]:-0.0.0}"
+          # Body of the newest entry only, i.e. up to the next "### " heading.
+          body=$(awk '/^### /{n++} n==1' "$addon/CHANGELOG.md")
+          IFS=. read -r nmaj nmin _ <<< "$newest"
+          IFS=. read -r pmaj pmin _ <<< "$prev"
+          if grep -q '✨ New' <<< "$body"; then
+            if [ "$nmaj" = "$pmaj" ] && [ "$nmin" = "$pmin" ]; then
+              echo "::error::$newest declares new features but is only a patch bump over $prev"
+              exit 1
+            fi
+            echo "$newest declares features and bumps the minor over $prev"
+          else
+            echo "$newest declares no new features; any bump is fine"
+          fi
+
   build:
     name: Build ${{ matrix.addon }} (${{ matrix.arch }})
-    needs: changes
+    needs: [changes, version-check]
     if: needs.changes.outputs.addons != '[]'
     runs-on: ubuntu-latest
     permissions:
