@@ -200,6 +200,35 @@ asking for release review.
 
 ---
 
+## Preparing the community announcement post
+
+Each release is announced in the LibreCoach Facebook and Discord groups. The post text
+lives in `/home/ted/src/librecoach/releases/<version-with-dashes>.md` (e.g. `1-5-2.md`
+for `1.5.2`) — one file per release, plain text ready to paste into both groups. Write it
+from the finished CHANGELOG entry, after the changelog is complete and before asking for
+release approval.
+
+Structure, following the existing posts:
+
+1. **Headline** — `🚐 LibreCoach v<version> is now available`, then one sentence naming
+   the two or three themes of the release.
+2. **What's new** — the headline features, each with an emoji, a short bold-free title
+   line, and one or two sentences describing what the user gets. Credit contributors by
+   name where a community member drove the change.
+3. **Improvements** — smaller user-visible wins, same emoji-led format.
+4. **Other fixes** — a single flowing paragraph of the remaining fixes, not a bullet list.
+5. **Heads up** — any breaking change or manual action (renamed entities, removed
+   add-on dependency, dashboard/automation references that need updating). Omit when the
+   release has none.
+6. **Closing** — `Update through Home Assistant → Settings → Apps → LibreCoach.`
+
+Write for coach owners, not developers: describe behavior in the RV, not modules or
+commits. Leave out internal refactors, artifact churn, and test-only changes. Keep it
+short enough to read in a Facebook post without a "See more" click on the first two
+sections.
+
+---
+
 ## GitHub Releases
 
 Both repos (`ha-addons-beta` and `ha-addons`) use LibreCoach-scoped release tags (e.g. `librecoach/1.5.0`). Create a matching release in **both repos** whenever a new version ships to prod.
@@ -215,6 +244,8 @@ Both repos (`ha-addons-beta` and `ha-addons`) use LibreCoach-scoped release tags
       `librecoach/node-red.ref` updated to that commit (see CRITICAL)
 - [ ] `CHANGELOG.md` updated from both the add-on diff and the full Node-RED
       `OLD_NR_REF..NEW_NR_REF` range
+- [ ] Community announcement post drafted at
+      `/home/ted/src/librecoach/releases/<version-with-dashes>.md`
 - [ ] Prod checked out on `main`
 - [ ] `mirror.sh --apply` run; prod `git status` shows only intended changes
 - [ ] config.yaml drift check is clean (only `version:` + `image:` differ); image still ends `-librecoach`
