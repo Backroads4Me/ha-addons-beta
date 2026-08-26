@@ -1,3 +1,26 @@
+### 1.7.0 (Aug 26, 2026)
+
+✨ New
+
+- Supported TM-102-family input modules now expose their RV-C digital inputs as binary sensors, named by module and connector pin when identification and input configuration are available
+- LibreCoach identifies RV-C nodes through their reported product information, improving device names while keeping names stable across firmware updates
+
+🛠️ Improvements
+
+- First-start MQTT setup now notifies the user as soon as Home Assistant confirms action is required, reports Home Assistant API outages separately, shows continuing progress, and retries notifications that could not be delivered
+- Interrupted LibreCoach-owned Node-RED installations resume safely without being mistaken for an existing user installation; the LibreCoach watchdog remains disabled until setup completes
+- The AI dashboard prompt omits diagnostic-only entities, keeping generated dashboards focused on useful coach controls and status
+- Entity discovery repairs stale records more reliably, including obsolete Victron component types and entity-map entries left by earlier configurations
+- Migration notifications are limited to stored records that need user attention and clear themselves when the issue no longer exists
+
+🐛 Fixes
+
+- Dashboard generator starts now register as generator demand, preventing the AGS from stopping the generator because no active demand was recorded
+- Transfer switches that stop reporting become unavailable instead of retaining stale source and electrical readings
+- RV-C diagnostics and SAE J1939 traffic are classified separately, preventing overlapping data pages from decoding frames as the wrong protocol
+- RV-C devices that share a source address remain distinct when their extended data-page identity differs
+- Entity-map recovery can resolve stale Home Assistant discovery records without abandoning the rest of the map
+
 ### 1.6.0 (Aug 21, 2026)
 
 ✨ New
