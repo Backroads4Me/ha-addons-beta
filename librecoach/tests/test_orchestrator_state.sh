@@ -32,6 +32,7 @@ assert_status() {
 }
 
 load_function get_addon_install_state
+load_function ensure_homeassistant_www
 load_function classify_nodered_install_state
 load_function mark_nodered_install_pending
 load_function is_nodered_install_pending
@@ -71,6 +72,13 @@ NODERED_INSTALL_PENDING_FILE="$TEST_TMP/install-pending.json"
 STATE_FILE="$TEST_TMP/state.json"
 export ADDON_VERSION="test-version"
 export PREVENT_FLOW_UPDATES=false
+
+export HOMEASSISTANT_CONFIG_DIR="$TEST_TMP/homeassistant"
+ensure_homeassistant_www
+test "$HOMEASSISTANT_WWW_CREATED" = "true"
+test -d "$HOMEASSISTANT_CONFIG_DIR/www"
+ensure_homeassistant_www
+test "$HOMEASSISTANT_WWW_CREATED" = "false"
 
 MOCK_API_RESPONSE='{"result":"ok","data":{"installed":true}}'
 assert_status 0 get_addon_install_state "$SLUG_NODERED"

@@ -114,6 +114,16 @@ run_orchestrator() {
 		fi
 	}
 
+	ensure_homeassistant_www() {
+		local config_dir=${HOMEASSISTANT_CONFIG_DIR:-/config}
+		HOMEASSISTANT_WWW_CREATED=false
+
+		if [ ! -d "$config_dir/www" ]; then
+			mkdir -p "$config_dir/www"
+			HOMEASSISTANT_WWW_CREATED=true
+		fi
+	}
+
 	# Run a command that must succeed. On failure, log a clear fatal message and
 	# abort startup so we never continue with partial deployment state.
 	run_required() {
@@ -1117,8 +1127,16 @@ _See LibreCoach addon logs for more details_" \
 		bashio::log.info "   Added $GITIGNORE_ENTRY to /config/.gitignore"
 	fi
 
-	# Install/update integration files (only restart if code actually changed)
+	# Home Assistant registers /local during frontend startup when www exists.
+	# Ensure first-time exports are available after the coordinated restart below.
 	NEEDS_HA_RESTART=false
+	ensure_homeassistant_www
+	if [ "$HOMEASSISTANT_WWW_CREATED" = "true" ]; then
+		bashio::log.info "   Created Home Assistant www directory for LibreCoach exports"
+		NEEDS_HA_RESTART=true
+	fi
+
+	# Install/update integration files (only restart if code actually changed)
 
 	# Define a hash function that ignores HA runtime files (.translations) and OS hidden files
 	get_integration_hash() {
