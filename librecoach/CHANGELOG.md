@@ -15,6 +15,7 @@
 
 🐛 Fixes
 
+- Installing Node-RED on a new system no longer fails when the download takes longer than 30 seconds; LibreCoach waits for the Home Assistant Supervisor to finish and reports a real reason if the install genuinely fails
 - Dashboard generator starts now register as generator demand, preventing the AGS from stopping the generator because no active demand was recorded
 - Transfer switches that stop reporting become unavailable instead of retaining stale source and electrical readings
 - RV-C diagnostics and SAE J1939 traffic are classified separately, preventing overlapping data pages from decoding frames as the wrong protocol

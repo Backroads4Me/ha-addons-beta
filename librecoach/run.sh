@@ -148,17 +148,24 @@ run_orchestrator() {
 			scrub' 2>/dev/null || echo "(${#raw} bytes, not JSON)"
 	}
 
+	# Supervisor calls that only read or set state answer quickly. Calls that pull a
+	# container image block for as long as the pull takes, so those callers raise
+	# API_TIMEOUT for the duration of the request.
+	API_TIMEOUT_DEFAULT=30
+	API_TIMEOUT_IMAGE_PULL=1800
+
 	api_call() {
 		local method=$1
 		local endpoint=$2
 		local data=${3:-}
+		local timeout=${API_TIMEOUT:-$API_TIMEOUT_DEFAULT}
 
 		log_debug "API Call: $method $endpoint"
 		if [ -n "$data" ]; then
 			log_debug "API Data: $(redact_json "$data")"
-			local response=$(curl -s --connect-timeout 5 -m 30 -X "$method" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$data" "$SUPERVISOR$endpoint")
+			local response=$(curl -s --connect-timeout 5 -m "$timeout" -X "$method" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$data" "$SUPERVISOR$endpoint")
 		else
-			local response=$(curl -s --connect-timeout 5 -m 30 -X "$method" -H "$AUTH_HEADER" "$SUPERVISOR$endpoint")
+			local response=$(curl -s --connect-timeout 5 -m "$timeout" -X "$method" -H "$AUTH_HEADER" "$SUPERVISOR$endpoint")
 		fi
 
 		# Responses are logged only for endpoints known to carry no credentials.
@@ -280,18 +287,46 @@ run_orchestrator() {
 		[ "$state" == "started" ]
 	}
 
+	# Waits for an install the Supervisor is still working on. Returns 0 once the store
+	# reports the add-on installed, 1 once the wait budget is spent.
+	wait_for_install() {
+		local slug=$1
+		local retries=60
+		while [ $retries -gt 0 ]; do
+			if get_addon_install_state "$slug"; then
+				return 0
+			fi
+			sleep 10
+			((retries--))
+		done
+		return 1
+	}
+
 	install_addon() {
 		local slug=$1
 		bashio::log.info "   Installing $slug"
 		local result
-		result=$(api_call POST "/store/addons/$slug/install")
+		result=$(API_TIMEOUT=$API_TIMEOUT_IMAGE_PULL api_call POST "/store/addons/$slug/install")
 		if echo "$result" | jq -e '.result == "ok"' >/dev/null 2>&1; then
 			bashio::log.info "   Installed $slug"
-		else
-			local error_msg=$(echo "$result" | jq -r '.message')
-			bashio::log.error "   ❌ Failed to install $slug: $error_msg"
+			return 0
+		fi
+
+		# An empty body means curl gave up before the Supervisor answered. The install
+		# itself keeps running, so poll the store rather than declaring failure.
+		if [ -z "$result" ]; then
+			bashio::log.info "   Still installing $slug; waiting for the Supervisor to finish"
+			if wait_for_install "$slug"; then
+				bashio::log.info "   Installed $slug"
+				return 0
+			fi
+			bashio::log.error "   ❌ Timed out waiting for $slug to install"
 			return 1
 		fi
+
+		local error_msg=$(echo "$result" | jq -r '.message // "unknown error"')
+		bashio::log.error "   ❌ Failed to install $slug: $error_msg"
+		return 1
 	}
 
 	start_addon() {

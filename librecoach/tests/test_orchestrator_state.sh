@@ -37,6 +37,8 @@ load_function mark_nodered_install_pending
 load_function is_nodered_install_pending
 load_function clear_nodered_install_pending
 load_function mark_nodered_managed
+load_function wait_for_install
+load_function install_addon
 
 api_call() {
 	printf '%s\n' "$MOCK_API_RESPONSE"
@@ -47,6 +49,14 @@ log_debug() {
 }
 
 bashio::log.info() {
+	:
+}
+
+bashio::log.error() {
+	:
+}
+
+sleep() {
 	:
 }
 
@@ -69,6 +79,33 @@ assert_status 1 get_addon_install_state "$SLUG_NODERED"
 
 MOCK_API_RESPONSE='{"result":"error","message":"Supervisor unavailable"}'
 assert_status 2 get_addon_install_state "$SLUG_NODERED"
+
+API_TIMEOUT_IMAGE_PULL=1800
+
+MOCK_API_RESPONSE='{"result":"ok"}'
+assert_status 0 install_addon "$SLUG_NODERED"
+
+# A truncated response means the Supervisor is still pulling, not that it failed.
+MOCK_API_RESPONSE=''
+INSTALL_STATE_RESULTS=(1 1 0)
+INSTALL_STATE_INDEX=0
+get_addon_install_state() {
+	local status=${INSTALL_STATE_RESULTS[$INSTALL_STATE_INDEX]}
+	if [ $((INSTALL_STATE_INDEX + 1)) -lt ${#INSTALL_STATE_RESULTS[@]} ]; then
+		((INSTALL_STATE_INDEX++))
+	fi
+	return "$status"
+}
+assert_status 0 install_addon "$SLUG_NODERED"
+
+INSTALL_STATE_RESULTS=(1)
+INSTALL_STATE_INDEX=0
+assert_status 1 install_addon "$SLUG_NODERED"
+
+MOCK_API_RESPONSE='{"result":"error","message":"Add-on is not available"}'
+assert_status 1 install_addon "$SLUG_NODERED"
+
+load_function get_addon_install_state
 
 test "$(classify_nodered_install_state 0 true false)" = "managed"
 test "$(classify_nodered_install_state 0 false true)" = "resume"
