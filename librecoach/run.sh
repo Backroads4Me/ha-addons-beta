@@ -1493,7 +1493,7 @@ An existing Node-RED installation was detected. LibreCoach needs to replace your
 	# Installation Summary
 	# ========================
 	bashio::log.info ""
-	bashio::log.info "     _     _ _                 ____                 _"
+	bashio::log.info "     _     _ _                ____                 _"
 	bashio::log.info "    | |   (_) |__  _ __ ___  / ___|___   __ _  ___| |__"
 	# bashio renders messages with printf %b, so a trailing space separates the
 	# visible backslash from the color-reset escape appended by the logger.

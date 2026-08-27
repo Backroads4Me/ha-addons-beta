@@ -15,7 +15,7 @@
 
 🐛 Fixes
 
-- The LibreCoach startup logo renders without exposing terminal color-control text
+- The top of the capital C in the LibreCoach startup logo aligns with the rest of the letter
 - Installing Node-RED on a new system no longer fails when the download takes longer than 30 seconds; LibreCoach waits for the Home Assistant Supervisor to finish and reports a real reason if the install genuinely fails
 - A Node-RED add-on that is installed but was never configured or started is adopted automatically instead of asking permission to overwrite flows that do not exist
 - Dashboard generator starts now register as generator demand, preventing the AGS from stopping the generator because no active demand was recorded
