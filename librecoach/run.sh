@@ -479,6 +479,27 @@ run_orchestrator() {
 		return 1
 	}
 
+	# LibreCoach cannot read Node-RED's data volume, so an untouched installation is
+	# recognized from its add-on record: no credential secret, so Node-RED has never
+	# stored credentials; no init commands, so nothing has configured it; and it is not
+	# running. There is no user configuration to replace, so it needs no takeover
+	# permission. Takes a /addons/<slug>/info response.
+	nodered_is_unconfigured() {
+		local info=$1
+		local state secret init_commands
+
+		state=$(echo "$info" | jq -r '.data.state // "unknown"')
+		[ "$state" != "started" ] || return 1
+
+		secret=$(echo "$info" | jq -r '.data.options.credential_secret // ""')
+		[ -z "$secret" ] || return 1
+
+		init_commands=$(echo "$info" | jq '(.data.options.init_commands // []) | length')
+		[ "$init_commands" = "0" ] || return 1
+
+		return 0
+	}
+
 	classify_nodered_install_state() {
 		local install_status=$1
 		local managed=$2
@@ -1248,9 +1269,14 @@ _See LibreCoach addon logs for more details_" \
 		# point to LibreCoach, a previous version was managing it. Auto-create state file
 		# so upgrades don't re-prompt for takeover permission.
 		if ! is_nodered_managed; then
-			nr_init_check=$(api_call GET "/addons/$SLUG_NODERED/info" | jq -r '.data.options.init_commands[0] // empty')
+			nr_takeover_info=$(api_call GET "/addons/$SLUG_NODERED/info")
+			nr_init_check=$(echo "$nr_takeover_info" | jq -r '.data.options.init_commands[0] // empty')
 			if [[ "$nr_init_check" == *"librecoach"* ]]; then
 				bashio::log.info "   Migrating: previous LibreCoach version detected (init_commands present). Creating state file."
+				mark_nodered_managed "$(get_flows_hash)"
+				MIGRATION_DETECTED=true
+			elif nodered_is_unconfigured "$nr_takeover_info"; then
+				bashio::log.info "   Adopting an unconfigured Node-RED installation. Creating state file."
 				mark_nodered_managed "$(get_flows_hash)"
 				MIGRATION_DETECTED=true
 			fi

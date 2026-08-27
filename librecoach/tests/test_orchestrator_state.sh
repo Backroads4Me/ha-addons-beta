@@ -39,6 +39,7 @@ load_function clear_nodered_install_pending
 load_function mark_nodered_managed
 load_function wait_for_install
 load_function install_addon
+load_function nodered_is_unconfigured
 
 api_call() {
 	printf '%s\n' "$MOCK_API_RESPONSE"
@@ -106,6 +107,19 @@ MOCK_API_RESPONSE='{"result":"error","message":"Add-on is not available"}'
 assert_status 1 install_addon "$SLUG_NODERED"
 
 load_function get_addon_install_state
+
+# A Node-RED the Supervisor installed but nothing ever configured.
+assert_status 0 nodered_is_unconfigured \
+	'{"data":{"state":"unknown","options":{"theme":"default","init_commands":[]}}}'
+assert_status 0 nodered_is_unconfigured \
+	'{"data":{"state":"stopped","options":{}}}'
+# A Node-RED the user has set up, in each of the ways that shows.
+assert_status 1 nodered_is_unconfigured \
+	'{"data":{"state":"started","options":{"init_commands":[]}}}'
+assert_status 1 nodered_is_unconfigured \
+	'{"data":{"state":"stopped","options":{"credential_secret":"user-secret","init_commands":[]}}}'
+assert_status 1 nodered_is_unconfigured \
+	'{"data":{"state":"stopped","options":{"init_commands":["bash /config/setup.sh"]}}}'
 
 test "$(classify_nodered_install_state 0 true false)" = "managed"
 test "$(classify_nodered_install_state 0 false true)" = "resume"
