@@ -491,12 +491,14 @@ run_orchestrator() {
 
 	# LibreCoach cannot read Node-RED's data volume, so an untouched installation is
 	# recognized from its add-on record: no credential secret, so Node-RED has never
-	# stored credentials; no init commands, so nothing has configured it; and it is not
-	# running. There is no user configuration to replace, so it needs no takeover
-	# permission. Takes a /addons/<slug>/info response.
+	# stored credentials; no init commands, so nothing has configured it; no
+	# authentication users, because configuring the add-on deletes that option and an
+	# owner's login is theirs to keep; and it is not running. There is no user
+	# configuration to replace, so it needs no takeover permission. Takes a
+	# /addons/<slug>/info response.
 	nodered_is_unconfigured() {
 		local info=$1
-		local state secret init_commands
+		local state secret init_commands users
 
 		state=$(echo "$info" | jq -r '.data.state // "unknown"')
 		[ "$state" != "started" ] || return 1
@@ -506,6 +508,9 @@ run_orchestrator() {
 
 		init_commands=$(echo "$info" | jq '(.data.options.init_commands // []) | length')
 		[ "$init_commands" = "0" ] || return 1
+
+		users=$(echo "$info" | jq '(.data.options.users // []) | length')
+		[ "$users" = "0" ] || return 1
 
 		return 0
 	}
@@ -538,11 +543,36 @@ run_orchestrator() {
 		mv "$pending_tmp" "$NODERED_INSTALL_PENDING_FILE"
 	}
 
+	# The marker claims an install this add-on started and did not get to finish, and
+	# that claim licenses adopting the installation without asking. It is only
+	# credible while the interrupted install is recent: a marker left by a crash
+	# outlives the install it describes, and the Node-RED sitting there months later
+	# may be one the owner installed and configured themselves. An expired marker is
+	# ignored, so that installation is classified as pre-existing and asked about.
 	is_nodered_install_pending() {
-		[ -f "$NODERED_INSTALL_PENDING_FILE" ] &&
-			jq -e --arg slug "$SLUG_NODERED" \
-				'.owner == "librecoach" and .slug == $slug' \
-				"$NODERED_INSTALL_PENDING_FILE" >/dev/null 2>&1
+		local max_age=86400
+
+		[ -f "$NODERED_INSTALL_PENDING_FILE" ] || return 1
+		jq -e --arg slug "$SLUG_NODERED" \
+			'.owner == "librecoach" and .slug == $slug' \
+			"$NODERED_INSTALL_PENDING_FILE" >/dev/null 2>&1 || return 1
+
+		local started_at started_epoch age
+		started_at=$(jq -r '.started_at // ""' "$NODERED_INSTALL_PENDING_FILE")
+
+		# A marker written before started_at was recorded, or carrying a timestamp
+		# this image's date cannot parse, states no age. Age is what makes the claim
+		# credible, so an unreadable one is treated as expired rather than trusted.
+		[ -n "$started_at" ] || return 1
+		started_epoch=$(date -d "$started_at" +%s 2>/dev/null) || return 1
+		[ -n "$started_epoch" ] || return 1
+
+		age=$(($(date +%s) - started_epoch))
+		# A clock that moved backwards since the marker was written yields a negative
+		# age. That is not evidence the install is old, so it stays credible.
+		[ "$age" -le "$max_age" ] || return 1
+
+		return 0
 	}
 
 	clear_nodered_install_pending() {

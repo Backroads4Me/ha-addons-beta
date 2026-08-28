@@ -1,4 +1,4 @@
-### 1.7.0 (Aug 26, 2026)
+### 1.7.0 (Aug 28, 2026)
 
 ✨ New
 
@@ -23,6 +23,14 @@
 - RV-C diagnostics and SAE J1939 traffic are classified separately, preventing overlapping data pages from decoding frames as the wrong protocol
 - RV-C devices that share a source address remain distinct when their extended data-page identity differs
 - Entity-map recovery can resolve stale Home Assistant discovery records without abandoning the rest of the map
+- Configuration export download links now work on any Home Assistant address and port, instead of only the default one
+- Configuration exports retain the RV details entered on the export page
+- Configuration import always reports its result, including when Home Assistant never answers for some entities, instead of leaving the import page waiting
+- The import notification's "Open Import Page" link now opens the import page
+- Digital inputs become unavailable when their input module stops reporting, instead of holding the reading it last sent
+- Input modules that never answer a status request are rested and retried later rather than asked every 20 seconds forever
+- A Node-RED add-on that was configured only with a login is no longer treated as unconfigured, so its authentication is left alone
+- An interrupted install is only resumed while it is recent, so a Node-RED the owner installed later is asked about rather than adopted
 
 ### 1.6.0 (Aug 21, 2026)
 

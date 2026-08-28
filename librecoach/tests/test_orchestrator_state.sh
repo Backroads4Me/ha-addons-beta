@@ -128,6 +128,8 @@ assert_status 1 nodered_is_unconfigured \
 	'{"data":{"state":"stopped","options":{"credential_secret":"user-secret","init_commands":[]}}}'
 assert_status 1 nodered_is_unconfigured \
 	'{"data":{"state":"stopped","options":{"init_commands":["bash /config/setup.sh"]}}}'
+assert_status 1 nodered_is_unconfigured \
+	'{"data":{"state":"stopped","options":{"users":[{"username":"owner"}],"init_commands":[]}}}'
 
 test "$(classify_nodered_install_state 0 true false)" = "managed"
 test "$(classify_nodered_install_state 0 false true)" = "resume"
@@ -140,6 +142,32 @@ assert_status 0 is_nodered_install_pending
 jq -e --arg slug "$SLUG_NODERED" \
 	'.owner == "librecoach" and .slug == $slug and .version == "test-version"' \
 	"$NODERED_INSTALL_PENDING_FILE" >/dev/null
+
+# The marker licenses adopting an installation without asking, so it is only
+# honored while the install it describes is recent. An old, undated or
+# unparsable marker reads as expired, which sends the installation down the
+# pre-existing path where the owner is asked.
+write_pending_marker() {
+	jq -n --arg slug "$SLUG_NODERED" --arg started_at "$1" \
+		'{owner: "librecoach", slug: $slug, version: "test-version"} +
+		 (if $started_at == "" then {} else {started_at: $started_at} end)' \
+		>"$NODERED_INSTALL_PENDING_FILE"
+}
+
+write_pending_marker "$(date -Iseconds -d '1 hour ago')"
+assert_status 0 is_nodered_install_pending
+write_pending_marker "$(date -Iseconds -d '25 hours ago')"
+assert_status 1 is_nodered_install_pending
+write_pending_marker ""
+assert_status 1 is_nodered_install_pending
+write_pending_marker "not-a-timestamp"
+assert_status 1 is_nodered_install_pending
+
+# A clock that moved backwards is not evidence the install is old.
+write_pending_marker "$(date -Iseconds -d '1 hour')"
+assert_status 0 is_nodered_install_pending
+
+mark_nodered_install_pending
 
 mark_nodered_managed "test-flow-hash"
 jq -e \
