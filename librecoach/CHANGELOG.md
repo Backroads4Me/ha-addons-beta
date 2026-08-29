@@ -2,11 +2,12 @@
 
 ✨ New
 
-- Supported TM-102-family input modules now expose their RV-C digital inputs as binary sensors, named by module and connector pin when identification and input configuration are available
+- Supported TM-102-family input modules now expose their RV-C digital inputs as binary sensors, named by module and connector pin once the module identifies itself
 - LibreCoach identifies RV-C nodes through their reported product information, improving device names while keeping names stable across firmware updates
 
 🛠️ Improvements
 
+- The import notification now opens the import page directly, without asking the owner to sign in again
 - First-start MQTT setup now notifies the user as soon as Home Assistant confirms action is required, reports Home Assistant API outages separately, shows continuing progress, and retries notifications that could not be delivered
 - Interrupted LibreCoach-owned Node-RED installations resume safely without being mistaken for an existing user installation; the LibreCoach watchdog remains disabled until setup completes
 - The AI dashboard prompt omits diagnostic-only entities, keeping generated dashboards focused on useful coach controls and status

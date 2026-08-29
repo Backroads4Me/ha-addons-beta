@@ -124,6 +124,41 @@ run_orchestrator() {
 		fi
 	}
 
+	# The import page is served by Node-RED on port 1880, which Home Assistant
+	# cannot link to directly: the coach is reached by hostname, mDNS name, or
+	# IP depending on the client. This page is served by Home Assistant from
+	# /local and forwards the browser to port 1880 on the host it is already
+	# using. The /endpoint prefix is the Node-RED add-on's unauthenticated
+	# proxy path, so the owner is not asked to sign in.
+	write_import_redirect_page() {
+		local config_dir=${HOMEASSISTANT_CONFIG_DIR:-/config}
+		local page="$config_dir/www/librecoach_import.html"
+
+		cat >"$page" <<-'IMPORT_PAGE'
+			<!DOCTYPE html>
+			<html lang="en">
+			<head>
+			<meta charset="UTF-8">
+			<title>LibreCoach — Import Configuration</title>
+			<style>
+			  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			         background: #1a1a2e; color: #e0e0e0; padding: 2rem; }
+			  a { color: #4fc3f7; }
+			</style>
+			</head>
+			<body>
+			<p>Opening the LibreCoach import page…</p>
+			<p>If nothing happens, <a id="link" href="#">open it here</a>.</p>
+			<script>
+			var target = "http://" + window.location.hostname + ":1880/endpoint/librecoach/import";
+			document.getElementById("link").href = target;
+			window.location.replace(target);
+			</script>
+			</body>
+			</html>
+		IMPORT_PAGE
+	}
+
 	# Run a command that must succeed. On failure, log a clear fatal message and
 	# abort startup so we never continue with partial deployment state.
 	run_required() {
@@ -1165,6 +1200,7 @@ _See LibreCoach addon logs for more details_" \
 		bashio::log.info "   Created Home Assistant www directory for LibreCoach exports"
 		NEEDS_HA_RESTART=true
 	fi
+	write_import_redirect_page
 
 	# Install/update integration files (only restart if code actually changed)
 
