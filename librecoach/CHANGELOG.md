@@ -31,6 +31,7 @@
 - Input modules that never answer a status request are rested and retried later rather than asked every 20 seconds forever
 - A Node-RED add-on that was configured only with a login is no longer treated as unconfigured, so its authentication is left alone
 - An interrupted install is only resumed while it is recent, so a Node-RED the owner installed later is asked about rather than adopted
+- Lights that report their state through a dimmer no longer refuse commands when an older installation also recorded them as component drivers
 
 ### 1.6.0 (Aug 21, 2026)
 
