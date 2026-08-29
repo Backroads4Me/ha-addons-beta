@@ -9,7 +9,7 @@
 
 - The import notification now opens the import page directly, without asking the owner to sign in again
 - Configuration export now includes renamed digital inputs, and lists only the entities the owner has actually renamed
-- The import page reports when an import has finished instead of leaving a progress indicator on screen
+- Importing a configuration reports its result instead of leaving the page showing progress indefinitely; the entity names were always applied, but the page never said so
 - First-start MQTT setup now notifies the user as soon as Home Assistant confirms action is required, reports Home Assistant API outages separately, shows continuing progress, and retries notifications that could not be delivered
 - Interrupted LibreCoach-owned Node-RED installations resume safely without being mistaken for an existing user installation; the LibreCoach watchdog remains disabled until setup completes
 - The AI dashboard prompt omits diagnostic-only entities, keeping generated dashboards focused on useful coach controls and status
