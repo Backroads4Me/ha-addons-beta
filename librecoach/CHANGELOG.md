@@ -20,6 +20,7 @@
 - Transfer switches that stop reporting become unavailable instead of retaining stale source and electrical readings
 - Two RV-C devices that share a source address no longer collapse into one, so each keeps its own entities
 - Lights that report their state through a dimmer no longer refuse commands when an older installation also recorded them as component drivers
+- Configuration import counts saved renames as applied rather than failed
 - Configuration exports retain the RV details entered on the export page
 
 ### 1.6.0 (Aug 21, 2026)
