@@ -374,14 +374,60 @@ run_orchestrator() {
 		return 1
 	}
 
+	# The Supervisor runs one job at a time per add-on and rejects a start or
+	# restart issued while another holds the lock, answering "Another job is
+	# running for job group app_<slug>". An add-on update still finishing in
+	# the background is the ordinary cause, so wait for the group to clear
+	# instead of aborting startup over work that is about to succeed.
+	JOB_LOCK_RETRIES=30
+	JOB_LOCK_WAIT=5
+
+	post_addon_action() {
+		local slug=$1
+		local action=$2
+		local retries=$JOB_LOCK_RETRIES
+		local result
+		local error_msg
+
+		while :; do
+			result=$(api_call POST "/addons/$slug/$action")
+
+			if echo "$result" | jq -e '.result == "ok"' >/dev/null 2>&1; then
+				return 0
+			fi
+
+			error_msg=$(echo "$result" | jq -r '.message // "Unknown error"')
+
+			case "$error_msg" in
+			*"Another job is running"*) ;;
+			*)
+				bashio::log.error "   ❌ Failed to $action $slug. API Response: $error_msg"
+				return 1
+				;;
+			esac
+
+			# The job holding the group can be one that leaves the add-on
+			# running, which is the outcome this call was asking for.
+			if is_running "$slug"; then
+				return 0
+			fi
+
+			if [ $retries -le 0 ]; then
+				bashio::log.error "   ❌ Timed out waiting for the Supervisor to finish its work on $slug"
+				return 1
+			fi
+
+			bashio::log.info "   Supervisor is busy with $slug; waiting to $action it"
+			sleep $JOB_LOCK_WAIT
+			((retries--))
+		done
+	}
+
 	start_addon() {
 		local slug=$1
 		bashio::log.info "   Starting $slug"
-		local result
-		result=$(api_call POST "/addons/$slug/start")
 
-		if ! echo "$result" | jq -e '.result == "ok"' >/dev/null 2>&1; then
-			bashio::log.error "   ❌ Failed to start $slug. API Response: $(echo "$result" | jq -r '.message // "Unknown error"')"
+		if ! post_addon_action "$slug" start; then
 			return 1
 		fi
 
@@ -416,11 +462,8 @@ run_orchestrator() {
 	restart_addon() {
 		local slug=$1
 		#bashio::log.info "   Restarting $slug"
-		local result
-		result=$(api_call POST "/addons/$slug/restart")
 
-		if ! echo "$result" | jq -e '.result == "ok"' >/dev/null 2>&1; then
-			bashio::log.error "   ❌ Failed to restart $slug. API Response: $(echo "$result" | jq -r '.message // "Unknown error"')"
+		if ! post_addon_action "$slug" restart; then
 			return 1
 		fi
 
