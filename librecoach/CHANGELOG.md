@@ -1,40 +1,26 @@
-### 1.7.0 (Aug 28, 2026)
+### 1.7.0 (Sep 1, 2026)
 
 ✨ New
 
-- Supported TM-102-family input modules now expose their RV-C digital inputs as binary sensors, named by module and connector pin once the module identifies itself
-- LibreCoach identifies RV-C nodes through their reported product information, improving device names while keeping names stable across firmware updates
+- TM-102 input modules now expose their RV-C digital inputs as binary sensors
+- Improved device names by using reported product information
 
 🛠️ Improvements
 
-- The import notification now opens the import page directly, without asking the owner to sign in again
-- Configuration export now includes renamed digital inputs, and lists only the entities the owner has actually renamed
-- Importing a configuration reports its result instead of leaving the page showing progress indefinitely; the entity names were always applied, but the page never said so
-- First-start MQTT setup now notifies the user as soon as Home Assistant confirms action is required, reports Home Assistant API outages separately, shows continuing progress, and retries notifications that could not be delivered
-- Interrupted LibreCoach-owned Node-RED installations resume safely without being mistaken for an existing user installation; the LibreCoach watchdog remains disabled until setup completes
+- Starting the generator now registers demand with the AGS, so the AGS honors its own Quiet Time
 - The AI dashboard prompt omits diagnostic-only entities, keeping generated dashboards focused on useful coach controls and status
-- Entity discovery repairs stale records more reliably, including obsolete Victron component types and entity-map entries left by earlier configurations
-- Migration notifications are limited to stored records that need user attention and clear themselves when the issue no longer exists
+- Importing a configuration reports its result instead of leaving the page showing progress indefinitely
+- Configuration export download links now work on any Home Assistant address and port, instead of only the default one
+- A Node-RED add-on that is installed but was never configured or started is adopted automatically, instead of asking permission to overwrite flows that do not exist
+- Migration notifications are limited to stored records that need your attention and clear themselves when the issue no longer exists
 
 🐛 Fixes
 
-- The top of the capital C in the LibreCoach startup logo aligns with the rest of the letter
-- Installing Node-RED on a new system no longer fails when the download takes longer than 30 seconds; LibreCoach waits for the Home Assistant Supervisor to finish and reports a real reason if the install genuinely fails
-- A Node-RED add-on that is installed but was never configured or started is adopted automatically instead of asking permission to overwrite flows that do not exist
-- Dashboard generator starts now register as generator demand, preventing the AGS from stopping the generator because no active demand was recorded
+- Installing Node-RED on a new system no longer fails when the download takes longer than 30 seconds
 - Transfer switches that stop reporting become unavailable instead of retaining stale source and electrical readings
-- RV-C diagnostics and SAE J1939 traffic are classified separately, preventing overlapping data pages from decoding frames as the wrong protocol
-- RV-C devices that share a source address remain distinct when their extended data-page identity differs
-- Entity-map recovery can resolve stale Home Assistant discovery records without abandoning the rest of the map
-- Configuration export download links now work on any Home Assistant address and port, instead of only the default one
-- Configuration exports retain the RV details entered on the export page
-- Configuration import always reports its result, including when Home Assistant never answers for some entities, instead of leaving the import page waiting
-- The import notification's "Open Import Page" link now opens the import page
-- Digital inputs become unavailable when their input module stops reporting, instead of holding the reading it last sent
-- Input modules that never answer a status request are rested and retried later rather than asked every 20 seconds forever
-- A Node-RED add-on that was configured only with a login is no longer treated as unconfigured, so its authentication is left alone
-- An interrupted install is only resumed while it is recent, so a Node-RED the owner installed later is asked about rather than adopted
+- Two RV-C devices that share a source address no longer collapse into one, so each keeps its own entities
 - Lights that report their state through a dimmer no longer refuse commands when an older installation also recorded them as component drivers
+- Configuration exports retain the RV details entered on the export page
 
 ### 1.6.0 (Aug 21, 2026)
 
