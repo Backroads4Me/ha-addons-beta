@@ -22,6 +22,7 @@
 - Lights that report their state through a dimmer no longer refuse commands when an older installation also recorded them as component drivers
 - Configuration import counts saved renames as applied rather than failed
 - Configuration exports retain the RV details entered on the export page
+- LibreCoach waits for the Supervisor to finish its work on Node-RED instead of aborting startup when another job is still running
 
 ### 1.6.0 (Aug 21, 2026)
 
