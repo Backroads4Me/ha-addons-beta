@@ -23,6 +23,8 @@
 - Configuration import counts saved renames as applied rather than failed
 - Configuration exports retain the RV details entered on the export page
 - LibreCoach waits for the Supervisor to finish its work on Node-RED instead of aborting startup when another job is still running
+- The import page's completion message stands out instead of appearing dimmed
+- The MQTT setup notification says that Home Assistant restarts after the integration is submitted, so a brief disconnect is expected
 
 ### 1.6.0 (Aug 21, 2026)
 
