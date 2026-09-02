@@ -65,6 +65,38 @@ else
   rsync --dry-run "${RSYNC_OPTS[@]}" "$SRC" "$DST"
 fi
 
+# --- executable-bit parity (git mode, not filesystem mode) ---
+#
+# rsync -a copies the filesystem mode, but prod's clone has core.fileMode=false,
+# so git ignores it and records a new file as 100644 even when the file on disk
+# is 755. The CI mirror-drift gate compares modes and fails on the difference.
+# Compare what each repo's *index* records and correct prod's, which is the only
+# mode that travels to the build.
+echo
+echo "executable-bit check (git index modes) ..."
+mode_fix() {
+  local mode_out fixed=0 rel path betamode prodmode
+  while read -r betamode _ _ rel; do
+    [[ "$betamode" == "100755" ]] || continue
+    path="librecoach/${rel#librecoach/}"
+    prodmode=$(git -C "$PROD" ls-files -s -- "$path" | awk '{print $1}')
+    [[ -n "$prodmode" ]] || continue          # not tracked in prod yet
+    [[ "$prodmode" == "100644" ]] || continue
+
+    if [[ $APPLY -eq 1 ]]; then
+      git -C "$PROD" update-index --chmod=+x -- "$path"
+      echo "  fixed $path (100644 → 100755)"
+    else
+      echo "  ⚠️  $path is 755 in beta but 100644 in prod's index"
+    fi
+    fixed=1
+  done < <(git -C "$BETA" ls-files -s -- librecoach)
+
+  [[ $fixed -eq 0 ]] && echo "  ✓ executable bits match"
+  return 0
+}
+mode_fix
+
 # --- config.yaml drift check (Option A: must differ ONLY by version + image) ---
 echo
 echo "config.yaml check (must differ only on 'version:' and 'image:') ..."
