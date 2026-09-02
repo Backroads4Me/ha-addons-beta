@@ -76,55 +76,52 @@ jobs:
             printf '%s-%s%s' "$1" "$2" "${IMAGE_SUFFIX:+-$IMAGE_SUFFIX}"
           }
 
+          # A 404 on one package is ambiguous: the package may not exist yet, or
+          # this token may simply not be allowed to see it. Only a package query
+          # that actually succeeded proves the token can read this owner's
+          # packages, so 404s are recorded and judged after the loop, once it is
+          # known whether any query succeeded at all. (The obvious probe —
+          # listing the owner's packages — is not usable: GITHUB_TOKEN gets
+          # HTTP 400 from /users/{owner}/packages, while the per-package
+          # versions endpoint below works.)
           registry_readable=false
 
-          # A 404 on a single package is ambiguous: the package may not exist
-          # yet, or the token may simply not be allowed to see it. Establish
-          # first that this token can read this owner's packages at all. With
-          # that proven, a later 404 means the package genuinely has no
-          # published version. Without it, nothing here may conclude "absent".
-          probe_registry() {
-            local out status
-            out=$(gh api "/users/$OWNER/packages?package_type=container&per_page=1" 2>&1) \
-              && status=0 || status=$?
-            if [ "$status" -ne 0 ]; then
-              echo "::error::cannot read packages for $OWNER, so published versions cannot be determined: $out"
-              exit 1
-            fi
-            registry_readable=true
-          }
-
-          # 0 = this version is published, 1 = absent. Any ambiguity exits.
+          # 0 = published, 1 = 404, 2 = present but this version absent.
+          # Any other failure exits.
           tag_published() {
             local package=$1 version=$2 out status
-            [ "$registry_readable" = true ] || probe_registry
-
             out=$(gh api --paginate \
                     "/users/$OWNER/packages/container/$package/versions" \
                     --jq '.[].metadata.container.tags[]' 2>&1) && status=0 || status=$?
 
             if [ "$status" -ne 0 ]; then
-              # 404 is "no published version" only because the probe above
-              # proved the token can see this owner's packages. Any other
-              # status (401, 403, 5xx) must fail loudly rather than be read as
-              # absent, or an outage would rebuild over a live tag.
               if grep -q 'HTTP 404' <<< "$out"; then
                 return 1
               fi
+              # 401, 403, 5xx: fail loudly rather than read it as absent, or an
+              # outage would rebuild over a live tag.
               echo "::error::could not query ghcr for $package: $out"
               exit 1
             fi
 
-            grep -Fxq "$version" <<< "$out"
+            registry_readable=true
+            grep -Fxq "$version" <<< "$out" && return 0
+            return 2
           }
 
           targets=()
           addons=()
+          unseen=()   # "addon arch version package": 404, verdict deferred
+
+          queue() {
+            echo "queueing $1 $3 for $2"
+            targets+=("$(jq -cn --arg addon "$1" --arg arch "$2" \
+                          '{addon: $addon, arch: $arch}')")
+          }
 
           for config in */config.yaml; do
             addon=${config%%/*}
             version=$(yq -r '.version' "$config")
-            selected=false
 
             for arch in "${ARCHES[@]}"; do
               case "$EVENT_NAME" in
@@ -133,29 +130,55 @@ jobs:
                   # says nothing useful about them; build whatever the PR
                   # touches.
                   git diff --quiet "$BASE_SHA...$HEAD_SHA" -- "$addon/" && continue
+                  queue "$addon" "$arch" "$version"
+                  continue
                   ;;
                 workflow_dispatch)
                   # A plain dispatch repairs what is missing. Overwriting a
                   # published tag is destructive, so it takes an explicit force.
-                  if [ "$FORCE" != "true" ]; then
-                    tag_published "$(package_name "$arch" "$addon")" "$version" && continue
+                  if [ "$FORCE" = "true" ]; then
+                    queue "$addon" "$arch" "$version"
+                    continue
                   fi
-                  ;;
-                *)
-                  tag_published "$(package_name "$arch" "$addon")" "$version" && continue
                   ;;
               esac
 
-              echo "queueing $addon $version for $arch"
-              targets+=("$(jq -cn --arg addon "$addon" --arg arch "$arch" \
-                            '{addon: $addon, arch: $arch}')")
-              selected=true
-            done
+              package=$(package_name "$arch" "$addon")
+              tag_published "$package" "$version" && continue || status=$?
 
-            if [ "$selected" = true ]; then
-              addons+=("$addon")
-            fi
+              if [ "$status" -eq 1 ]; then
+                unseen+=("$addon $arch $version $package")
+              else
+                queue "$addon" "$arch" "$version"
+              fi
+            done
           done
+
+          # Every 404 is now either a package that has genuinely never been
+          # published, or a package this token cannot see. If no query in this
+          # run succeeded, there is no way to tell them apart — refuse rather
+          # than risk republishing over a tag that is actually live. Publishing
+          # a brand new package for the first time is the legitimate case, and
+          # it goes through a forced dispatch.
+          if [ ${#unseen[@]} -gt 0 ] && [ "$registry_readable" != true ]; then
+            echo "::error::no package query succeeded, so these 404s cannot be" \
+                 "distinguished from packages this token cannot see:"
+            printf '::error::  %s\n' "${unseen[@]}"
+            echo "::error::If this is a first-ever publish, re-run with force enabled."
+            exit 1
+          fi
+
+          for entry in ${unseen[@]+"${unseen[@]}"}; do
+            read -r addon arch version _ <<< "$entry"
+            queue "$addon" "$arch" "$version"
+          done
+
+          # version-check runs per add-on, so reduce the targets to the distinct
+          # add-ons they cover. Guarded: printf with no arguments would still
+          # emit one empty line and yield a bogus [""].
+          if [ ${#targets[@]} -gt 0 ]; then
+            mapfile -t addons < <(printf '%s\n' "${targets[@]}" | jq -r '.addon' | sort -u)
+          fi
 
           jq -cn --args '$ARGS.positional' ${addons[@]+"${addons[@]}"} \
             | sed 's/^/addons=/' >> "$GITHUB_OUTPUT"
