@@ -1,4 +1,4 @@
-### 1.7.0 (Sep 1, 2026)
+### 1.7.0 (Sep 2, 2026)
 
 ✨ New
 
@@ -11,7 +11,7 @@
 - The AI dashboard prompt omits diagnostic-only entities, keeping generated dashboards focused on useful coach controls and status
 - Importing a configuration reports its result instead of leaving the page showing progress indefinitely
 - Configuration export download links now work on any Home Assistant address and port, instead of only the default one
-- A Node-RED add-on that is installed but was never configured or started is adopted automatically, instead of asking permission to overwrite flows that do not exist
+- A Node-RED add-on that is installed but was never configured or started is adopted automatically
 - Migration notifications are limited to stored records that need your attention and clear themselves when the issue no longer exists
 
 🐛 Fixes
@@ -20,11 +20,9 @@
 - Transfer switches that stop reporting become unavailable instead of retaining stale source and electrical readings
 - Two RV-C devices that share a source address no longer collapse into one, so each keeps its own entities
 - Lights that report their state through a dimmer no longer refuse commands when an older installation also recorded them as component drivers
-- Configuration import counts saved renames as applied rather than failed
 - Configuration exports retain the RV details entered on the export page
-- LibreCoach waits for the Supervisor to finish its work on Node-RED instead of aborting startup when another job is still running
-- The import page's completion message stands out instead of appearing dimmed
-- The MQTT setup notification says that Home Assistant restarts after the integration is submitted, so a brief disconnect is expected
+
+Plus a number of smaller improvements and fixes throughout.
 
 ### 1.6.0 (Aug 21, 2026)
 
