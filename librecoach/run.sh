@@ -1042,7 +1042,12 @@ MQTT integration needs to be enabled
 4. Click **SUBMIT** to use Mosquitto broker
 5. Return to **Settings → Add-ons → LibreCoach** and watch the log
 
-Setup resumes automatically within one minute. Restart LibreCoach if it does not resume.
+**After SUBMIT, Home Assistant Core restarts to apply the change.**
+It is normal to briefly lose connection to Home Assistant. Wait a few
+minutes and refresh your browser if necessary.
+
+Setup resumes automatically within one minute of Home Assistant coming back.
+Restart LibreCoach if it does not resume.
 
 **Why?** The MQTT integration listens for device discovery messages and creates entities automatically.
 
