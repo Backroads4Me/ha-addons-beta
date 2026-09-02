@@ -206,7 +206,8 @@ Each release is announced in the LibreCoach Facebook and Discord groups. The pos
 lives in `/home/ted/src/librecoach/releases/<version-with-dashes>.md` (e.g. `1-5-2.md`
 for `1.5.2`) — one file per release, plain text ready to paste into both groups. Write it
 from the finished CHANGELOG entry, after the changelog is complete and before asking for
-release approval.
+release approval. The complete post must stay under Discord's 2,000-character limit,
+including line breaks and emoji.
 
 Structure, following the existing posts:
 
@@ -245,7 +246,8 @@ Both repos (`ha-addons-beta` and `ha-addons`) use LibreCoach-scoped release tags
 - [ ] `CHANGELOG.md` updated from both the add-on diff and the full Node-RED
       `OLD_NR_REF..NEW_NR_REF` range
 - [ ] Community announcement post drafted at
-      `/home/ted/src/librecoach/releases/<version-with-dashes>.md`
+      `/home/ted/src/librecoach/releases/<version-with-dashes>.md` and verified to be under
+      Discord's 2,000-character limit
 - [ ] Prod checked out on `main`
 - [ ] `mirror.sh --apply` run; prod `git status` shows only intended changes
 - [ ] config.yaml drift check is clean (only `version:` + `image:` differ); image still ends `-librecoach`
