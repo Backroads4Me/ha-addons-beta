@@ -7,9 +7,9 @@ shared addon source **up** into the prod `ha-addons` repo for release.
 > Earlier cycles synced prod → beta (Model A). That is retired. Do **not** author the
 > add-on in prod anymore — prod's `librecoach/` is a downstream mirror of beta's.
 
-**Current production baseline: `1.6.0` (2026-08-21).** Production carries Node-RED ref
-`4109cfda3d8bb683899911f4fc5582d20847cb17`. Prod sets its own `version:` and `image:`
-(beta is `…-librecoach-beta`); bump prod's version above `1.6.0` for the next release.
+**Current production baseline: `1.7.1` (2026-09-16).** Production carries Node-RED ref
+`9656489c4b8d8777748f9eb34ead7ef14f8759a3`. Prod sets its own `version:` and `image:`
+(beta is `…-librecoach-beta`); bump prod's version above `1.7.1` for the next release.
 
 ## Roles
 
