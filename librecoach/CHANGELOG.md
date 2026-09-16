@@ -1,3 +1,9 @@
+### 1.7.1 (Sep 16, 2026)
+
+🐛 Fixes
+
+- Thermostats that number their first zone as zone 0 now get a climate control, instead of responding to commands with no entity to operate them from
+
 ### 1.7.0 (Sep 2, 2026)
 
 ✨ New
