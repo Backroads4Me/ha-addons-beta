@@ -2,7 +2,7 @@
 
 🐛 Fixes
 
-- Thermostats that number their first zone as zone 0 now get a climate control, instead of responding to commands with no entity to operate them from
+- A thermostat that never appeared in Home Assistant now shows up as a climate control
 
 ### 1.7.0 (Sep 2, 2026)
 
