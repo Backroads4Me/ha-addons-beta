@@ -2,7 +2,7 @@
 
 🐛 Fixes
 
-- A thermostat that never appeared in Home Assistant now shows up as a climate control
+- Thermostats whose first zone is numbered 0 now appear in Home Assistant.
 
 ### 1.7.0 (Sep 2, 2026)
 
