@@ -1,5 +1,7 @@
 # LibreCoach - RV Control System
 
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-Support%20LibreCoach-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Backroads4Me)
+
 *Bring your RV's systems into Home Assistant — monitor, control, and automate from any device.*
 
 LibreCoach transforms Home Assistant into a professional RV control center. It integrates your RV's RV-C network directly with Home Assistant, allowing you to control and monitor your RV from any device.
@@ -42,11 +44,7 @@ Contributions to LibreCoach require signing the CLA. See [CONTRIBUTING.md](./CON
 
 ## Support LibreCoach
 
-LibreCoach is free and open source.
+If LibreCoach has been useful to you, and you'd like to help keep it going:
 
-If it helped you connect your RV to Home Assistant, the best way to support the project right now is to star this repository so other RV and Home Assistant users can find it.
-
-Sponsorships are appreciated, but never expected.
-
-[![Star Repository](https://img.shields.io/badge/%E2%AD%90%20Star%20this%20Repo-GitHub-lightgrey?logo=github&logoColor=black)](https://github.com/Backroads4Me/ha-addons)
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/Backroads4Me)
+- [Buy me a coffee](https://buymeacoffee.com/Backroads4Me)
+- [Star LibreCoach on GitHub](https://github.com/Backroads4Me/ha-addons)
