@@ -1,6 +1,6 @@
 # LibreCoach - RV Control System
 
-[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-Support%20LibreCoach-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/Backroads4Me)
+<a href="https://buymeacoffee.com/Backroads4Me"><img src="https://cdn.buymeacoffee.com/buttons/v2/arial-yellow.png" alt="Buy Me a Coffee" width="180"></a>
 
 *Bring your RV's systems into Home Assistant — monitor, control, and automate from any device.*
 
