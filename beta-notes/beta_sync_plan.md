@@ -42,6 +42,12 @@ only by the file mirror below — never by a git merge across them.
    is the step that reaches end users. **Never do it without explicit approval.** Bump prod's
    `version:` at this point.
 
+> **Agents run the approved release steps themselves.** Once Ted approves a release step
+> (prod commit/push, tags, GitHub Releases), the agent executes the commands and verifies the
+> result rather than handing Ted commands to paste. If the auto-mode safety check blocks a
+> command, the agent asks Ted to approve that command. `ha-addons-beta` has two GitHub remotes
+> (`origin` and `prod`), so `gh` commands there pass `-R Backroads4Me/ha-addons-beta`.
+
 > **The mirror copies files, not git history.** The two repos share no history, so beta's
 > commits never cross over. Each migration lands in prod as **one fresh commit** (or however
 > many you choose to split it into) — the granular beta commit history stays in beta.
