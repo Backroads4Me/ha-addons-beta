@@ -5,7 +5,6 @@
 - Gen 2 Hughes Power Watchdogs now report power factor for each line
 - Hughes Power Watchdog readings display at a sensible precision instead of four decimal places
 - A Hughes Power Watchdog reconnects within seconds when shore power returns, instead of after up to five minutes
-- Beta and alpha test builds start from your LibreCoach settings and never change them
 
 🐛 Fixes
 
