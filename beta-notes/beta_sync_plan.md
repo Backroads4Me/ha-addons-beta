@@ -102,7 +102,7 @@ add-on payload (`run.sh`, `Dockerfile`, `rootfs/`, `translations/`, `vehicle_bri
 | `README.md` (root) | beta landing page warns testers off prod |
 | `.github/*` | beta workflow carries `SUFFIX: beta` |
 | `beta-notes/*` | beta-only working notes (this file lives here) |
-| `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | identical today, but kept repo-local on principle |
+| `AGENTS.md` | kept repo-local on principle |
 
 `mirror.sh` scopes rsync to `librecoach/`, so it physically cannot touch prod's root,
 `.github/`, `.git/`, dev tooling, or beta notes — even with `--delete`.
