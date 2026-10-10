@@ -1,3 +1,10 @@
+### 1.7.4
+
+🛠️ Improvements
+
+- The Location sensors recover on their own after Home Assistant restarts, instead of staying unavailable until the coach moves or the app restarts
+- The Location sensors keep their last known city, state, timezone and elevation while the location source is unavailable
+
 ### 1.7.3 (Oct 8, 2026)
 
 🛠️ Improvements
